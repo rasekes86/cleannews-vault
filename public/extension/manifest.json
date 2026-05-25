@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "CleanNews Vault",
-  "version": "1.0.0",
-  "description": "Extrae y guarda artículos limpios de cualquier página web. Almacena, organiza y lee tus artículos favoritos sin distracciones.",
+  "version": "2.0.0",
+  "description": "Extrae y guarda artículos limpios. Biblioteca personal con colecciones, búsqueda fuzzy, modo oscuro, progreso de lectura y exportación PDF.",
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "contextMenus",
+    "sidePanel"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -14,17 +16,45 @@
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
-    }
+    },
+    "default_title": "CleanNews Vault"
   },
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content/readability.js", "content/content.js"]
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+E",
+        "mac": "Alt+E"
+      },
+      "description": "Abrir CleanNews Vault"
+    },
+    "extract-article": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "Extraer artículo de la pestaña actual"
+    },
+    "open-library": {
+      "suggested_key": {
+        "default": "Alt+L",
+        "mac": "Alt+L"
+      },
+      "description": "Abrir biblioteca"
+    },
+    "toggle-sidebar": {
+      "suggested_key": {
+        "default": "Alt+B",
+        "mac": "Alt+B"
+      },
+      "description": "Abrir panel lateral"
     }
-  ],
+  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -33,14 +63,15 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "library/library.html",
-        "library/library.css",
-        "library/library.js",
-        "reader/reader.html",
-        "reader/reader.css",
-        "reader/reader.js",
+        "library/*",
+        "reader/*",
+        "sidepanel/*",
         "utils/storage.js",
-        "utils/export.js"
+        "utils/export.js",
+        "utils/db.js",
+        "utils/url.js",
+        "utils/search.js",
+        "utils/auto-tagger.js"
       ],
       "matches": ["<all_urls>"]
     }

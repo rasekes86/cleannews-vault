@@ -20,102 +20,253 @@
       <div class="lib-search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <input type="text" id="search-input" placeholder="Buscar artículos..." autocomplete="off">
+        <button id="search-clear" class="search-clear hidden" title="Limpiar búsqueda">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
-      <button id="new-extract-btn" class="btn btn-primary btn-sm">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        Nueva Extracción
-      </button>
+      <div class="header-actions">
+        <button id="new-extract-btn" class="btn btn-primary btn-sm" title="Nueva Extracción">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>Nueva Extracción</span>
+        </button>
+        <button id="import-btn" class="btn btn-secondary btn-sm" title="Importar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <span>Importar</span>
+        </button>
+        <button id="export-all-btn" class="btn btn-secondary btn-sm" title="Exportar todo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Exportar</span>
+        </button>
+        <button id="theme-toggle" class="btn btn-ghost btn-sm" title="Cambiar tema">
+          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+      </div>
     </div>
   </header>
 
-  <main class="lib-main">
-    <!-- Stats Bar -->
-    <div class="stats-bar">
-      <div class="stat-item">
-        <span class="stat-number" id="stat-articles">0</span>
-        <span class="stat-label">Artículos</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <span class="stat-number" id="stat-sources">0</span>
-        <span class="stat-label">Fuentes</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <span class="stat-number" id="stat-tags">0</span>
-        <span class="stat-label">Etiquetas</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <span class="stat-number" id="stat-favorites">0</span>
-        <span class="stat-label">Favoritos</span>
-      </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="filters-bar">
-      <div class="filter-group">
-        <select id="filter-tag" class="filter-select">
-          <option value="">Todas las etiquetas</option>
-        </select>
-        <select id="filter-source" class="filter-select">
-          <option value="">Todas las fuentes</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <button id="filter-favorites" class="filter-btn" title="Mostrar solo favoritos">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-          <span>Favoritos</span>
+  <div class="lib-layout">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <nav class="sidebar-nav">
+        <button class="sidebar-item active" data-filter="all">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          <span class="sidebar-label">Todas</span>
+          <span id="count-all" class="sidebar-count">0</span>
         </button>
-        <select id="sort-select" class="filter-select">
-          <option value="date">Más recientes</option>
-          <option value="title">Título A-Z</option>
-          <option value="source">Fuente A-Z</option>
-          <option value="readTime">Más largos</option>
-        </select>
+        <button class="sidebar-item" data-filter="favorites">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          <span class="sidebar-label">Favoritos</span>
+          <span id="count-favorites" class="sidebar-count">0</span>
+        </button>
+        <button class="sidebar-item" data-filter="read">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span class="sidebar-label">Leídos</span>
+          <span id="count-read" class="sidebar-count">0</span>
+        </button>
+        <button class="sidebar-item" data-filter="unread">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
+          <span class="sidebar-label">No leídos</span>
+          <span id="count-unread" class="sidebar-count">0</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-separator"></div>
+
+      <!-- Collections list -->
+      <div class="sidebar-collections-header">
+        <span>Colecciones</span>
+        <button id="new-collection-sidebar-btn" class="sidebar-add-btn" title="Nueva colección">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+      </div>
+      <div id="collections-list" class="sidebar-collections">
+        <!-- Rendered by JS -->
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="lib-main">
+      <!-- Stats Bar -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-articles">0</span>
+            <span class="stat-label">Artículos</span>
+          </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-sources">0</span>
+            <span class="stat-label">Fuentes</span>
+          </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-tags">0</span>
+            <span class="stat-label">Etiquetas</span>
+          </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-collections">0</span>
+            <span class="stat-label">Colecciones</span>
+          </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-words">0</span>
+            <span class="stat-label">Palabras</span>
+          </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-progress">0%</span>
+            <span class="stat-label">Progreso lectura</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <select id="filter-tag" class="filter-select">
+            <option value="">Todas las etiquetas</option>
+          </select>
+          <select id="filter-source" class="filter-select">
+            <option value="">Todas las fuentes</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <select id="sort-select" class="filter-select">
+            <option value="savedAt">Fecha guardado</option>
+            <option value="publishedAt">Fecha publicación</option>
+            <option value="title">Título A-Z</option>
+            <option value="source">Fuente A-Z</option>
+            <option value="readTime">Tiempo lectura</option>
+            <option value="readProgress">Progreso lectura</option>
+          </select>
+          <select id="sort-dir-select" class="filter-select filter-select-sm">
+            <option value="desc">Descendente</option>
+            <option value="asc">Ascendente</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Articles Grid -->
+      <div id="articles-grid" class="articles-grid">
+        <!-- Cards rendered by JS -->
+      </div>
+
+      <!-- Empty States -->
+      <div id="empty-state" class="empty-state hidden">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="empty-icon">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        <h3 id="empty-title">No hay artículos guardados</h3>
+        <p id="empty-description">Extrae contenido de cualquier página web usando el icono de la extensión.</p>
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination" class="pagination hidden">
+        <button id="prev-page" class="page-btn" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          Anterior
+        </button>
+        <span id="page-info" class="page-info"></span>
+        <button id="next-page" class="page-btn">
+          Siguiente
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Create/Edit Collection Modal -->
+  <div id="collection-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-md">
+      <h3 id="collection-modal-title">Nueva Colección</h3>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="modal-collection-name">Nombre</label>
+          <input type="text" id="modal-collection-name" class="form-input" placeholder="Nombre de la colección">
+        </div>
+        <div class="form-group">
+          <label for="modal-collection-desc">Descripción</label>
+          <input type="text" id="modal-collection-desc" class="form-input" placeholder="Descripción opcional">
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <div class="color-picker">
+            <button class="color-dot-lg active" data-color="#ef4444" style="background:#ef4444"></button>
+            <button class="color-dot-lg" data-color="#f97316" style="background:#f97316"></button>
+            <button class="color-dot-lg" data-color="#eab308" style="background:#eab308"></button>
+            <button class="color-dot-lg" data-color="#22c55e" style="background:#22c55e"></button>
+            <button class="color-dot-lg" data-color="#06b6d4" style="background:#06b6d4"></button>
+            <button class="color-dot-lg" data-color="#3b82f6" style="background:#3b82f6"></button>
+            <button class="color-dot-lg" data-color="#8b5cf6" style="background:#8b5cf6"></button>
+            <button class="color-dot-lg" data-color="#ec4899" style="background:#ec4899"></button>
+            <button class="color-dot-lg" data-color="#6b7280" style="background:#6b7280"></button>
+            <button class="color-dot-lg" data-color="#78716c" style="background:#78716c"></button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="modal-collection-save" class="btn btn-primary">Guardar</button>
+        <button id="modal-collection-cancel" class="btn btn-secondary">Cancelar</button>
       </div>
     </div>
-
-    <!-- Articles Grid -->
-    <div id="articles-grid" class="articles-grid">
-      <!-- Cards rendered by JS -->
-    </div>
-
-    <!-- Empty State -->
-    <div id="empty-state" class="empty-state hidden">
-      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="empty-icon">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-      </svg>
-      <h3 id="empty-title">No hay artículos guardados</h3>
-      <p id="empty-description">Extrae contenido de cualquier página web usando el icono de la extensión.</p>
-    </div>
-
-    <!-- Pagination -->
-    <div id="pagination" class="pagination hidden">
-      <button id="prev-page" class="page-btn" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        Anterior
-      </button>
-      <span id="page-info" class="page-info"></span>
-      <button id="next-page" class="page-btn">
-        Siguiente
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-      </button>
-    </div>
-  </main>
+  </div>
 
   <!-- Delete Confirmation Modal -->
   <div id="delete-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
-      <h3>¿Eliminar artículo?</h3>
-      <p>Esta acción no se puede deshacer.</p>
+      <h3 id="delete-modal-title">¿Eliminar artículo?</h3>
+      <p id="delete-modal-desc">Esta acción no se puede deshacer.</p>
       <div class="modal-actions">
         <button id="confirm-delete" class="btn btn-danger">Eliminar</button>
         <button id="cancel-delete" class="btn btn-secondary">Cancelar</button>
       </div>
     </div>
+  </div>
+
+  <!-- Import Modal -->
+  <div id="import-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-md">
+      <h3>Importar Backup</h3>
+      <div class="modal-body">
+        <div id="import-dropzone" class="import-dropzone">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <p>Arrastra un archivo JSON aquí o haz clic para seleccionar</p>
+          <input type="file" id="import-file" accept=".json" class="import-file-input">
+        </div>
+        <p id="import-status" class="import-status hidden"></p>
+      </div>
+      <div class="modal-actions">
+        <button id="import-close" class="btn btn-secondary">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu (Add to Collection) -->
+  <div id="context-menu" class="context-menu hidden">
+    <div class="context-menu-header">Añadir a colección</div>
+    <div id="context-menu-items"></div>
   </div>
 
   <!-- Toast -->
@@ -124,7 +275,12 @@
     <span id="toast-message"></span>
   </div>
 
+  <script src="../utils/db.js"></script>
+  <script src="../utils/url.js"></script>
+  <script src="../utils/search.js"></script>
+  <script src="../utils/auto-tagger.js"></script>
   <script src="../utils/storage.js"></script>
+  <script src="../utils/export.js"></script>
   <script src="library.js"></script>
 </body>
 </html>
