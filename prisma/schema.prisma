@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  title       String
+  subtitle    String?
+  author      String?
+  source      String
+  sourceUrl   String
+  content     String
+  excerpt     String?
+  publishedAt DateTime?
+  extractedAt DateTime @default(now())
+  notes       String?
+  tags        Tag[]
+  isFavorite  Boolean  @default(false)
+  readTime    Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  color     String    @default("#6b7280")
+  articles  Article[]
+  createdAt DateTime  @default(now())
+}
