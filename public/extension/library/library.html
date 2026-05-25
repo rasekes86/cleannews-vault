@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleanNews Vault - Biblioteca</title>
+  <link rel="stylesheet" href="library.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="lib-header">
+    <div class="lib-header-inner">
+      <div class="lib-brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        <h1>CleanNews Vault</h1>
+      </div>
+      <div class="lib-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="search-input" placeholder="Buscar artículos..." autocomplete="off">
+      </div>
+      <button id="new-extract-btn" class="btn btn-primary btn-sm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Nueva Extracción
+      </button>
+    </div>
+  </header>
+
+  <main class="lib-main">
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-number" id="stat-articles">0</span>
+        <span class="stat-label">Artículos</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-number" id="stat-sources">0</span>
+        <span class="stat-label">Fuentes</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-number" id="stat-tags">0</span>
+        <span class="stat-label">Etiquetas</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-number" id="stat-favorites">0</span>
+        <span class="stat-label">Favoritos</span>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="filter-group">
+        <select id="filter-tag" class="filter-select">
+          <option value="">Todas las etiquetas</option>
+        </select>
+        <select id="filter-source" class="filter-select">
+          <option value="">Todas las fuentes</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <button id="filter-favorites" class="filter-btn" title="Mostrar solo favoritos">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          <span>Favoritos</span>
+        </button>
+        <select id="sort-select" class="filter-select">
+          <option value="date">Más recientes</option>
+          <option value="title">Título A-Z</option>
+          <option value="source">Fuente A-Z</option>
+          <option value="readTime">Más largos</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Articles Grid -->
+    <div id="articles-grid" class="articles-grid">
+      <!-- Cards rendered by JS -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state hidden">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="empty-icon">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+      </svg>
+      <h3 id="empty-title">No hay artículos guardados</h3>
+      <p id="empty-description">Extrae contenido de cualquier página web usando el icono de la extensión.</p>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="pagination hidden">
+      <button id="prev-page" class="page-btn" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        Anterior
+      </button>
+      <span id="page-info" class="page-info"></span>
+      <button id="next-page" class="page-btn">
+        Siguiente
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+    </div>
+  </main>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3>¿Eliminar artículo?</h3>
+      <p>Esta acción no se puede deshacer.</p>
+      <div class="modal-actions">
+        <button id="confirm-delete" class="btn btn-danger">Eliminar</button>
+        <button id="cancel-delete" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+    <span id="toast-message"></span>
+  </div>
+
+  <script src="../utils/storage.js"></script>
+  <script src="library.js"></script>
+</body>
+</html>
