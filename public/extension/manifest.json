@@ -1,14 +1,13 @@
 {
   "manifest_version": 3,
   "name": "CleanNews Vault",
-  "version": "2.0.0",
-  "description": "Extrae y guarda artículos limpios. Biblioteca personal con colecciones, búsqueda fuzzy, modo oscuro, progreso de lectura y exportación PDF.",
+  "version": "3.0.0",
+  "description": "Extrae y guarda artículos limpios con un botón flotante. Biblioteca personal con colecciones, búsqueda, modo oscuro y exportación.",
   "permissions": [
     "activeTab",
     "storage",
     "scripting",
-    "contextMenus",
-    "sidePanel"
+    "contextMenus"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -22,9 +21,6 @@
   "background": {
     "service_worker": "background.js"
   },
-  "side_panel": {
-    "default_path": "sidepanel/sidepanel.html"
-  },
   "commands": {
     "_execute_action": {
       "suggested_key": {
@@ -33,26 +29,12 @@
       },
       "description": "Abrir CleanNews Vault"
     },
-    "extract-article": {
-      "suggested_key": {
-        "default": "Alt+S",
-        "mac": "Alt+S"
-      },
-      "description": "Extraer artículo de la pestaña actual"
-    },
-    "open-library": {
-      "suggested_key": {
-        "default": "Alt+L",
-        "mac": "Alt+L"
-      },
-      "description": "Abrir biblioteca"
-    },
     "toggle-sidebar": {
       "suggested_key": {
         "default": "Alt+B",
         "mac": "Alt+B"
       },
-      "description": "Abrir panel lateral"
+      "description": "Abrir/cerrar panel lateral"
     }
   },
   "icons": {
@@ -60,18 +42,30 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "web_accessible_resources": [
+  "content_scripts": [
     {
-      "resources": [
-        "library/*",
-        "reader/*",
-        "sidepanel/*",
-        "utils/storage.js",
-        "utils/export.js",
+      "matches": ["<all_urls>"],
+      "js": [
         "utils/db.js",
         "utils/url.js",
         "utils/search.js",
-        "utils/auto-tagger.js"
+        "utils/auto-tagger.js",
+        "utils/storage.js",
+        "utils/export.js",
+        "content/readability.js",
+        "content/content.js"
+      ],
+      "css": [],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/sidebar.css",
+        "library/*",
+        "reader/*",
+        "icons/*"
       ],
       "matches": ["<all_urls>"]
     }
