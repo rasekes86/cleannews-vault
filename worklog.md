@@ -96,3 +96,25 @@ Stage Summary:
 - All code pushed to https://github.com/rasekes86/cleannews-vault
 - Release v3.0.0 published at https://github.com/rasekes86/cleannews-vault/releases/tag/v3.0.0
 - Zip asset available for download
+
+---
+Task ID: 6
+Agent: Main Orchestrator
+Task: v4.0.0 Side Panel rebuild — fix browser freeze from <all_urls> content scripts
+
+Work Log:
+- Deleted old files: content/content.js (1246 lines FAB+Shadow DOM), content/sidebar.css (1605 lines), popup/* (3 files)
+- Rewrote manifest.json: v4.0.0, added "sidePanel" permission, added side_panel.default_path, removed all content_scripts (no more <all_urls> injection), added icon1024, simplified web_accessible_resources to only content/readability.js
+- Rewrote background.js: chrome.action.onClicked opens side panel, chrome.sidePanel.setOptions on install, EXTRACT_PAGE handler uses chrome.scripting.executeScript (2-step: inject readability.js file, then execute bridge function calling new CleanNewsReadability().parse()), full async support with return true
+- Rewrote sidepanel/sidepanel.html: 3-tab layout (Extraer/Biblioteca/Colecciones), page info card, extract actions area, search+filter library, collections with form, stats footer, toast container, loads all utils via script tags
+- Rewrote sidepanel/sidepanel.css: CSS custom properties design system, light/dark mode, tab navigation, page info card, extract button with gradient, preview card, tag chips with autocomplete dropdown, collection selector, article cards with progress bar, collection items with color dots, toast animations, custom scrollbar
+- Rewrote sidepanel/sidepanel.js: init with CleanNewsDB + theme + active tab info, on-demand extraction via chrome.runtime.sendMessage EXTRACT_PAGE, auto-tag suggestions via CleanNewsAutoTagger, library with search/filter/favorite/delete, collections create/delete, tag autocomplete, XSS prevention with escapeHtml/escapeAttr
+- Verified: no changes to utils/*, content/readability.js, library/*, reader/*, icons/*
+- Zero lint errors, clean compilation
+
+Stage Summary:
+- v4.0.0 fixes the critical browser freeze by removing ALL automatic content scripts
+- Side Panel is now the main UI (no FAB, no Shadow DOM, no popup)
+- On-demand extraction only: readability.js injected into active tab ONLY when user clicks "Extraer"
+- -3420 lines removed (old FAB+Shadow DOM content script), +1833 lines added (clean side panel)
+- All existing functionality preserved: extract, save, library, reader, collections, tags, favorites, export
