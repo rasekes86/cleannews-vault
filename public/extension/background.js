@@ -1,5 +1,5 @@
-// CleanNews Vault v3.0 - Background Service Worker
-// Context menus, keyboard commands, badge, message relay.
+// CleanNews Vault v4.0 - Background Service Worker
+// Side Panel opener, on-demand script injection, badge management.
 
 // ── Import utility modules ──────────────────────────────
 try {
@@ -51,54 +51,96 @@ function createContextMenus() {
 
 chrome.contextMenus.onClicked.addListener(function (info, tab) {
   if (info.menuItemId === 'extract-page') {
-    // Send toggle message to content script - it will handle extraction
-    chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_SIDEBAR' }).catch(function () {});
+    // Open side panel (it will get active tab info on its own)
+    chrome.sidePanel.open({ tabId: tab.id }).catch(function () {});
   } else if (info.menuItemId === 'extract-link' && info.linkUrl) {
     chrome.tabs.create({ url: info.linkUrl });
   }
 });
 
 // ═══════════════════════════════════════════════════════════
-// KEYBOARD COMMANDS
+// ACTION CLICK → OPEN SIDE PANEL
 // ═══════════════════════════════════════════════════════════
 
-chrome.commands.onCommand.addListener(function (command) {
-  if (command === 'toggle-sidebar') {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      if (tabs.length > 0) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'TOGGLE_SIDEBAR' }).catch(function () {});
-      }
-    });
-  }
+chrome.action.onClicked.addListener(function (tab) {
+  // Open side panel for the current window
+  chrome.sidePanel.open({ tabId: tab.id }).catch(function () {});
 });
 
 // ═══════════════════════════════════════════════════════════
-// MESSAGE HANDLER (from popup, content scripts)
+// MESSAGE HANDLER (from side panel)
 // ═══════════════════════════════════════════════════════════
 
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   switch (message.type) {
 
-    // Content script says sidebar is ready
-    case 'SIDEBAR_READY':
-      refreshBadge();
-      sendResponse({ success: true });
-      break;
+    // ── On-demand extraction via scripting API ─────────────
+    case 'EXTRACT_PAGE': {
+      // Get the active tab
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        if (!tabs || tabs.length === 0) {
+          sendResponse({ success: false, error: 'No hay pestaña activa' });
+          return;
+        }
 
-    // Article saved/updated - refresh badge
+        var tab = tabs[0];
+
+        // Cannot inject into chrome:// or other restricted pages
+        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) {
+          sendResponse({ success: false, error: 'No se puede extraer de esta página' });
+          return;
+        }
+
+        // Step 1: Inject readability.js first
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content/readability.js']
+        }).then(function () {
+          // Step 2: Inject bridge function that calls CleanNewsReadability().parse()
+          return chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: function () {
+              try {
+                if (typeof CleanNewsReadability === 'undefined') {
+                  return { success: false, error: 'CleanNewsReadability no disponible' };
+                }
+                var reader = new CleanNewsReadability();
+                var result = reader.parse();
+                return { success: true, data: result };
+              } catch (err) {
+                return { success: false, error: err.message || 'Error en extracción' };
+              }
+            }
+          });
+        }).then(function (injectionResults) {
+          if (injectionResults && injectionResults.length > 0) {
+            var result = injectionResults[0].result;
+            sendResponse(result);
+          } else {
+            sendResponse({ success: false, error: 'No se pudo ejecutar la extracción' });
+          }
+        }).catch(function (err) {
+          sendResponse({ success: false, error: err.message || 'Error al inyectar script' });
+        });
+      });
+
+      return true; // async response
+    }
+
+    // ── Article saved/updated — refresh badge ──────────────
     case 'ARTICLE_SAVED':
     case 'ARTICLE_DELETED':
       refreshBadge();
       sendResponse({ success: true });
       break;
 
-    // Open library in new tab
+    // ── Open library in new tab ────────────────────────────
     case 'OPEN_LIBRARY':
       chrome.tabs.create({ url: chrome.runtime.getURL('library/library.html') });
       sendResponse({ success: true });
       break;
 
-    // Open reader for specific article
+    // ── Open reader for specific article ───────────────────
     case 'OPEN_READER':
       if (message.articleId) {
         chrome.tabs.create({
@@ -110,7 +152,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
       }
       break;
 
-    // Get badge count
+    // ── Get badge count ────────────────────────────────────
     case 'GET_BADGE_COUNT':
       if (typeof CleanNewsDB !== 'undefined') {
         CleanNewsDB.init()
@@ -136,14 +178,20 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 // ═══════════════════════════════════════════════════════════
 
 chrome.runtime.onInstalled.addListener(function (details) {
+  // Set side panel as the action behavior
+  chrome.sidePanel.setOptions({
+    enabled: true,
+    path: 'sidepanel/sidepanel.html'
+  }).catch(function () {});
+
   if (details.reason === 'install') {
-    console.log('[CleanNews Vault] v3.0.0 instalado');
+    console.log('[CleanNews Vault] v4.0.0 instalado');
     createContextMenus();
     refreshBadge();
   }
 
   if (details.reason === 'update') {
-    console.log('[CleanNews Vault] Actualizado a v3.0.0 (antes: ' + details.previousVersion + ')');
+    console.log('[CleanNews Vault] Actualizado a v4.0.0 (antes: ' + details.previousVersion + ')');
     chrome.contextMenus.removeAll(function () {
       createContextMenus();
     });

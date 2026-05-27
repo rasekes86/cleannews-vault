@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-  <!-- Header -->
+  <!-- ═══ Header ═══ -->
   <header class="sp-header">
     <div class="sp-header-inner">
       <div class="sp-brand">
@@ -24,40 +24,122 @@
     </div>
   </header>
 
-  <!-- Search -->
-  <div class="sp-search">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-    <input type="text" id="search-input" placeholder="Buscar artículos..." autocomplete="off">
-  </div>
-
-  <!-- Quick Filters -->
-  <div class="sp-filters">
-    <button class="sp-filter-btn active" data-filter="all">Todos</button>
-    <button class="sp-filter-btn" data-filter="favorites">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-      Favoritos
+  <!-- ═══ Tab Navigation ═══ -->
+  <nav class="sp-tabs">
+    <button class="sp-tab active" data-tab="extract">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+      Extraer
     </button>
-    <button class="sp-filter-btn" data-filter="unread">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
-      No leídos
+    <button class="sp-tab" data-tab="library">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+      Biblioteca
     </button>
-  </div>
+    <button class="sp-tab" data-tab="collections">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+      Colecciones
+    </button>
+  </nav>
 
-  <!-- Articles List -->
-  <div id="articles-list" class="sp-articles-list">
-    <!-- Rendered by JS -->
-  </div>
+  <!-- ═══ Tab Panels ═══ -->
+  <main class="sp-main">
 
-  <!-- Empty State -->
-  <div id="empty-state" class="sp-empty hidden">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-    </svg>
-    <p>No hay artículos</p>
-  </div>
+    <!-- ─── Extract Tab ─── -->
+    <div class="sp-tab-panel active" data-panel="extract">
+      <!-- Page Info -->
+      <div class="sp-page-info">
+        <div class="sp-page-info-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        </div>
+        <div class="sp-page-info-text">
+          <span id="page-title" class="sp-page-title">Cargando...</span>
+          <span id="page-url" class="sp-page-url"></span>
+        </div>
+      </div>
 
-  <!-- Stats Footer -->
+      <!-- Extract Actions Area -->
+      <div id="extract-actions" class="sp-extract-actions">
+        <!-- Rendered by JS: extract button / loading / already saved / preview -->
+      </div>
+    </div>
+
+    <!-- ─── Library Tab ─── -->
+    <div class="sp-tab-panel" data-panel="library">
+      <!-- Search -->
+      <div class="sp-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="search-input" placeholder="Buscar artículos..." autocomplete="off">
+      </div>
+
+      <!-- Collection filter header (hidden by default) -->
+      <div id="collection-filter-header" class="sp-collection-filter hidden">
+        <span id="collection-filter-dot" class="sp-collection-filter-dot"></span>
+        <span id="collection-filter-name"></span>
+        <button id="collection-filter-clear" class="sp-collection-filter-clear" title="Limpiar filtro">✕</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="sp-filters">
+        <button class="sp-filter-btn active" data-filter="all">Todos</button>
+        <button class="sp-filter-btn" data-filter="favorites">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          Favoritos
+        </button>
+        <button class="sp-filter-btn" data-filter="unread">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
+          No leídos
+        </button>
+      </div>
+
+      <!-- Articles List -->
+      <div id="articles-list" class="sp-articles-list"></div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="sp-empty hidden">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        <p>No hay artículos</p>
+      </div>
+    </div>
+
+    <!-- ─── Collections Tab ─── -->
+    <div class="sp-tab-panel" data-panel="collections">
+      <div class="sp-collections-header">
+        <h3>Colecciones</h3>
+        <button id="toggle-new-collection" class="sp-btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Nueva
+        </button>
+      </div>
+
+      <!-- New Collection Form (hidden by default) -->
+      <div id="collection-form" class="sp-collection-form hidden">
+        <label class="sp-form-label">Nombre</label>
+        <input type="text" id="new-collection-name" class="sp-form-input" placeholder="Ej: Artículos de IA">
+        <label class="sp-form-label">Color</label>
+        <div id="color-dots" class="sp-color-dots"></div>
+        <div class="sp-form-actions">
+          <button id="create-collection" class="sp-btn sp-btn-primary">Crear</button>
+          <button id="cancel-collection" class="sp-btn sp-btn-secondary">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Collections List -->
+      <div id="collections-list" class="sp-collections-list"></div>
+
+      <!-- Collections Empty State -->
+      <div id="collections-empty" class="sp-empty hidden">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <p>Sin colecciones aún</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ═══ Footer ═══ -->
   <footer class="sp-footer">
     <div class="sp-stats">
       <span id="stat-total" class="sp-stat">0 artículos</span>
@@ -70,15 +152,16 @@
     </a>
   </footer>
 
-  <!-- Toast -->
-  <div id="toast" class="toast hidden">
-    <span id="toast-message"></span>
-  </div>
+  <!-- ═══ Toast Container ═══ -->
+  <div id="toast-container" class="sp-toast-container"></div>
 
+  <!-- ═══ Scripts (order matters: utilities first) ═══ -->
   <script src="../utils/db.js"></script>
   <script src="../utils/url.js"></script>
   <script src="../utils/search.js"></script>
+  <script src="../utils/auto-tagger.js"></script>
   <script src="../utils/storage.js"></script>
+  <script src="../utils/export.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>
