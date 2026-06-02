@@ -1694,6 +1694,57 @@ body {
   overflow-y: auto;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   GAME REVIEWS
+   ═══════════════════════════════════════════════════════════════ */
+
+.sp-game-search {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
+.sp-btn-full {
+  width: 100%;
+  flex: unset;
+}
+
+.sp-game-results {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Results count */
+.sp-game-results-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+}
+
+.sp-game-results-count strong {
+  color: var(--text-secondary);
+}
+
+/* Review badge (REVIEW / INFO) */
+.sp-review-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--primary);
+  color: #fff;
+  line-height: 1.4;
+}
+
+.sp-review-badge-info {
+  background: var(--text-muted);
+}
+
 /* Game Review Card */
 .sp-review-card {
   background: var(--bg-card);
@@ -1710,10 +1761,22 @@ body {
 }
 
 .sp-review-card-header {
+  margin-bottom: 6px;
+}
+
+.sp-review-card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.sp-review-card-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .sp-review-game-title {
@@ -1722,6 +1785,7 @@ body {
   color: var(--text);
   flex: 1;
   min-width: 0;
+  line-height: 1.4;
 }
 
 /* Score badge */
@@ -1729,8 +1793,9 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 6px;
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 700;
@@ -1752,8 +1817,14 @@ body {
 
 .sp-review-source {
   font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.sp-review-domain {
+  font-size: 10px;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  font-style: italic;
 }
 
 .sp-review-excerpt {
@@ -1770,6 +1841,19 @@ body {
 .sp-review-actions {
   display: flex;
   gap: 6px;
+}
+
+/* Outline button variant */
+.sp-btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.sp-btn-outline:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
 }
 
 /* ═══════════════════════════════════════════════════════════════

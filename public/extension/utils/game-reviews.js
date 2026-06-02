@@ -1,34 +1,49 @@
-// CleanNews Vault v5.0 - Game Reviews Search
-// Search game reviews via web search URLs and DuckDuckGo Instant Answer API
+// CleanNews Vault v5.1 - Game Reviews Search
+// Fetches REAL review results by parsing DuckDuckGo HTML search
+// Used by background.js service worker (has host_permissions for duckduckgo.com)
 
 const CleanNewsGameReviews = (() => {
   'use strict';
 
-  // ── Constants ────────────────────────────────────────────────────
+  // ── Known gaming review sources ───────────────────────────
+  var KNOWN_SOURCES = [
+    { domain: 'ign.com', name: 'IGN' },
+    { domain: 'gamespot.com', name: 'GameSpot' },
+    { domain: 'eurogamer.net', name: 'Eurogamer' },
+    { domain: 'pcgamer.com', name: 'PC Gamer' },
+    { domain: 'polygon.com', name: 'Polygon' },
+    { domain: '3djuegos.com', name: '3DJuegos' },
+    { domain: 'vandal.net', name: 'Vandal' },
+    { domain: 'metacritic.com', name: 'Metacritic' },
+    { domain: 'kotaku.com', name: 'Kotaku' },
+    { domain: 'destructoid.com', name: 'Destructoid' },
+    { domain: 'rockpapershotgun.com', name: 'Rock Paper Shotgun' },
+    { domain: 'pushsquare.com', name: 'Push Square' },
+    { domain: 'nintendolife.com', name: 'Nintendo Life' },
+    { domain: 'vg247.com', name: 'VG247' },
+    { domain: 'gameinformer.com', name: 'Game Informer' },
+    { domain: 'worthplaying.com', name: 'Worth Playing' },
+    { domain: 'rpgamer.com', name: 'RPGamer' },
+    { domain: 'hardcoregamer.com', name: 'Hardcore Gamer' },
+    { domain: 'shacknews.com', name: 'Shacknews' },
+    { domain: 'gematsu.com', name: 'Gematsu' },
+    { domain: 'siliconera.com', name: 'Siliconera' },
+    { domain: 'theverge.com', name: 'The Verge' },
+    { domain: 'wired.com', name: 'Wired' },
+    { domain: 'digitaltrends.com', name: 'Digital Trends' },
+    { domain: 'screenrant.com', name: 'Screen Rant' },
+    { domain: 'gamerant.com', name: 'Game Rant' }
+  ];
 
-  const SEARCH_URL = 'https://duckduckgo.com/html/?q=';
-  const INSTANT_ANSWER_URL = 'https://api.duckduckgo.com/?q=';
+  // ── Review-related keywords ─────────────────────────────────
+  var REVIEW_KEYWORDS = ['review', 'reseña', 'resena', 'análisis', 'analisis', 'analysis',
+    'puntuación', 'puntuacion', 'score', 'rating', 'veredicto', 'verdict',
+    'jugabilidad', 'gameplay', 'gráficos', 'graficos', 'graphics', 'opinión', 'opinion'];
 
-  // ── Private helpers ──────────────────────────────────────────────
-
-  /**
-   * Simple HTML text extraction (no DOM parsing needed for basic fetch)
-   * @param {string} html
-   * @param {string} tag
-   * @returns {string}
-   */
-  function _extractBetween(html, startMarker, endMarker) {
-    const startIdx = html.indexOf(startMarker);
-    if (startIdx === -1) return '';
-    const endIdx = html.indexOf(endMarker, startIdx + startMarker.length);
-    if (endIdx === -1) return '';
-    return html.substring(startIdx + startMarker.length, endIdx).trim();
-  }
+  // ── Private helpers ───────────────────────────────────────
 
   /**
    * Remove HTML tags from a string
-   * @param {string} html
-   * @returns {string}
    */
   function _stripTags(html) {
     if (!html) return '';
@@ -39,190 +54,274 @@ const CleanNewsGameReviews = (() => {
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#039;/g, "'")
+      .replace(/&#39;/g, "'")
       .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
   }
 
   /**
-   * Build a search URL for game queries
-   * @param {string} query
-   * @returns {string}
+   * Extract the domain from a URL
    */
-  function _buildSearchUrl(query) {
-    const encoded = encodeURIComponent(query);
-    return SEARCH_URL + encoded + '+review';
+  function _getDomain(url) {
+    if (!url) return '';
+    try {
+      return new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+    } catch (e) {
+      return '';
+    }
   }
 
   /**
-   * Build DuckDuckGo Instant Answer API URL
-   * @param {string} query
-   * @returns {string}
+   * Get a friendly source name from a domain
    */
-  function _buildInstantAnswerUrl(query) {
-    const encoded = encodeURIComponent(query);
-    return INSTANT_ANSWER_URL + encoded + '&format=json&no_html=1';
+  function _getSourceName(domain) {
+    var found = KNOWN_SOURCES.find(function (s) {
+      return domain.indexOf(s.domain) !== -1;
+    });
+    return found ? found.name : domain;
   }
 
   /**
-   * Extract score from a text string (e.g. "8.5/10", "85%", "4.5 stars")
-   * @param {string} text
-   * @returns {number|null}
+   * Check if a result is likely a review (by URL and title keywords)
+   */
+  function _isReviewResult(url, title) {
+    var lowerUrl = (url || '').toLowerCase();
+    var lowerTitle = (title || '').toLowerCase();
+    var combined = lowerUrl + ' ' + lowerTitle;
+
+    return REVIEW_KEYWORDS.some(function (kw) {
+      return combined.indexOf(kw) !== -1;
+    });
+  }
+
+  /**
+   * Try to extract a score from text
    */
   function _extractScore(text) {
     if (!text) return null;
-
-    // Pattern: X/10 or X.X/10
-    const match1 = text.match(/(\d+\.?\d*)\s*\/\s*10/);
-    if (match1) {
-      return { score: parseFloat(match1[1]), maxScore: 10 };
-    }
-
-    // Pattern: X/100
-    const match2 = text.match(/(\d+)\s*\/\s*100/);
-    if (match2) {
-      return { score: parseFloat(match2[1]), maxScore: 100 };
-    }
-
-    // Pattern: X%
-    const match3 = text.match(/(\d+\.?\d*)%/);
-    if (match3) {
-      return { score: parseFloat(match3[1]), maxScore: 100 };
-    }
-
-    // Pattern: X.X stars
-    const match4 = text.match(/(\d+\.?\d*)\s*stars?\b/i);
-    if (match4) {
-      return { score: parseFloat(match4[1]), maxScore: 5 };
-    }
-
+    // X.X/10 or X/10
+    var m1 = text.match(/(\d+\.?\d*)\s*\/\s*10/);
+    if (m1) return { score: parseFloat(m1[1]), max: 10 };
+    // X/100 or X%
+    var m2 = text.match(/(\d+\.?\d*)\s*\/\s*100/);
+    if (m2) return { score: parseFloat(m2[1]), max: 100 };
+    var m3 = text.match(/(\d+\.?\d*)%/);
+    if (m3) return { score: parseFloat(m3[1]), max: 100 };
+    // X.X/5 stars
+    var m4 = text.match(/(\d+\.?\d*)\s*\/?\s*5\s*stars?\b/i);
+    if (m4) return { score: parseFloat(m4[1]), max: 5 };
+    // "10/10" at start
+    var m5 = text.match(/^(\d+\.?\d*)\s*\/\s*(\d+)/);
+    if (m5) return { score: parseFloat(m5[1]), max: parseFloat(m5[2]) };
     return null;
   }
 
-  // ── Public API ──────────────────────────────────────────────────
+  /**
+   * Generate a unique ID for a review result
+   */
+  function _generateId(prefix) {
+    var ts = Date.now().toString(36);
+    var rand = Math.random().toString(36).substring(2, 9);
+    return (prefix || 'rev') + '_' + ts + '_' + rand;
+  }
+
+  /**
+   * Parse DuckDuckGo HTML search results
+   * @param {string} html - Raw HTML from DuckDuckGo
+   * @param {string} gameName - Original search query
+   * @returns {object[]}
+   */
+  function _parseDuckDuckGoHtml(html, gameName) {
+    var results = [];
+
+    // DuckDuckGo HTML results are in <div class="result results_links">
+    // Each result has:
+    //   <a class="result__a">  → title + URL
+    //   <a class="result__snippet"> → snippet text
+    //   <span class="result__url"> → display URL
+
+    // Find all result blocks using regex (no DOM in service worker)
+    var resultRegex = /<div[^>]*class="[^"]*result[^"]*results_links[^"]*"[^>]*>[\s\S]*?<\/div>\s*(?:<\/div>\s*)*?<\/div>/gi;
+    var blocks = html.match(resultRegex);
+
+    if (!blocks || blocks.length === 0) {
+      // Fallback: try another pattern
+      resultRegex = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+      var titleMatches = [];
+      var m;
+      while ((m = resultRegex.exec(html)) !== null) {
+        titleMatches.push(m);
+      }
+
+      titleMatches.forEach(function (match) {
+        var hrefMatch = match[0].match(/href="([^"]*)"/);
+        var titleText = _stripTags(match[1]);
+
+        if (hrefMatch && titleText) {
+          var url = hrefMatch[1];
+          if (url.startsWith('//')) url = 'https:' + url;
+          if (url.startsWith('/')) url = 'https://html.duckduckgo.com' + url;
+
+          // Skip DuckDuckGo internal links
+          if (url.indexOf('duckduckgo.com') !== -1 && url.indexOf('uddg=') === -1) return;
+          if (url.indexOf('duckduckgo.com') !== -1 && url.indexOf('uddg=') !== -1) {
+            // Extract the actual URL from DuckDuckGo redirect
+            var uddgMatch = url.match(/uddg=([^&]*)/);
+            if (uddgMatch) {
+              try { url = decodeURIComponent(uddgMatch[1]); } catch (e) { return; }
+            }
+          }
+
+          var domain = _getDomain(url);
+          results.push({
+            id: _generateId('rev'),
+            title: titleText,
+            url: url,
+            source: _getSourceName(domain),
+            domain: domain,
+            excerpt: '',
+            score: null,
+            scoreMax: 10,
+            imageUrl: '',
+            isReview: _isReviewResult(url, titleText)
+          });
+        }
+      });
+
+      return results;
+    }
+
+    blocks.forEach(function (block) {
+      // Extract title and URL
+      var titleMatch = block.match(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
+      if (!titleMatch) {
+        titleMatch = block.match(/<a[^>]*href="([^"]*)"[^>]*class="[^"]*result__a[^"]*"[^>]*>([\s\S]*?)<\/a>/i);
+      }
+
+      if (!titleMatch) return;
+
+      var url = titleMatch[1];
+      var title = _stripTags(titleMatch[2]);
+
+      // Handle DuckDuckGo redirect URLs
+      if (url.indexOf('uddg=') !== -1) {
+        var uddgMatch = url.match(/uddg=([^&]*)/);
+        if (uddgMatch) {
+          try { url = decodeURIComponent(uddgMatch[1]); } catch (e) { return; }
+        }
+      }
+      if (url.startsWith('//')) url = 'https:' + url;
+
+      // Skip non-http links
+      if (!url.startsWith('http')) return;
+      // Skip DuckDuckGo own pages
+      if (_getDomain(url).indexOf('duckduckgo') !== -1) return;
+
+      // Extract snippet
+      var snippetMatch = block.match(/<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/i)
+        || block.match(/class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:a|span|div)>/i);
+      var snippet = snippetMatch ? _stripTags(snippetMatch[1]) : '';
+
+      var domain = _getDomain(url);
+
+      // Try to extract score from title or snippet
+      var scoreData = _extractScore(title) || _extractScore(snippet);
+
+      results.push({
+        id: _generateId('rev'),
+        title: title,
+        url: url,
+        source: _getSourceName(domain),
+        domain: domain,
+        excerpt: snippet,
+        score: scoreData ? scoreData.score : null,
+        scoreMax: scoreData ? scoreData.max : 10,
+        imageUrl: '',
+        isReview: _isReviewResult(url, title)
+      });
+    });
+
+    return results;
+  }
+
+  // ── Public API ─────────────────────────────────────────────
 
   return {
 
     /**
-     * Search for games by query. Returns game info from DuckDuckGo Instant Answer API.
-     * @param {string} query - Game name to search
-     * @returns {Promise<{title: string, platform: string, releaseYear: string}[]>}
-     */
-    async searchGames(query) {
-      try {
-        const url = _buildInstantAnswerUrl(query + ' video game');
-        const response = await fetch(url);
-        const data = await response.json();
-
-        const games = [];
-
-        // Check Abstract for game info
-        if (data.Abstract) {
-          games.push({
-            title: data.Heading || query,
-            platform: _stripTags(data.Abstract).substring(0, 100),
-            releaseYear: data.Heading ? '' : ''
-          });
-        }
-
-        // Check RelatedTopics for additional results
-        if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
-          for (const topic of data.RelatedTopics.slice(0, 5)) {
-            if (topic.Text) {
-              games.push({
-                title: _stripTags(topic.Text).split(/[-–—|]/)[0].trim().substring(0, 80),
-                platform: '',
-                releaseYear: ''
-              });
-            }
-          }
-        }
-
-        return games;
-      } catch (err) {
-        console.error('[CleanNewsGameReviews] searchGames error:', err);
-        // Return a fallback game entry
-        return [{ title: query, platform: '', releaseYear: '' }];
-      }
-    },
-
-    /**
-     * Search for game reviews. Constructs search URLs and parses basic HTML results.
-     * Note: In Chrome extension context, use chrome.runtime.sendMessage to proxy fetch.
-     * @param {string} gameName - Name of the game to find reviews for
-     * @returns {Promise<{title: string, source: string, url: string, score: number, maxScore: number, excerpt: string, date: string, imageUrl: string}[]>}
+     * Search for game reviews via DuckDuckGo HTML search.
+     * MUST be called from background.js (needs host_permissions).
+     *
+     * @param {string} gameName - Name of the game to search
+     * @returns {Promise<object[]>} Array of review results
      */
     async searchReviews(gameName) {
+      if (!gameName || !gameName.trim()) return [];
+
+      var query = encodeURIComponent(gameName.trim() + ' game review reseña análisis');
+      var searchUrl = 'https://html.duckduckgo.com/html/?q=' + query;
+
       try {
-        const query = gameName + ' game review';
-        const url = _buildInstantAnswerUrl(query);
-        const response = await fetch(url);
-        const data = await response.json();
-
-        const reviews = [];
-
-        // Process Abstract as main review source
-        if (data.Abstract || data.AbstractText) {
-          const text = data.AbstractText || data.Abstract || '';
-          const scoreData = _extractScore(text);
-          reviews.push({
-            title: data.Heading || gameName + ' - Reseña',
-            source: data.AbstractSource || 'DuckDuckGo',
-            url: data.AbstractURL || '',
-            score: scoreData ? scoreData.score : null,
-            maxScore: scoreData ? scoreData.maxScore : 10,
-            excerpt: _stripTags(text).substring(0, 300),
-            date: '',
-            imageUrl: data.Image || ''
-          });
-        }
-
-        // Process RelatedTopics for additional review sources
-        if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
-          for (const topic of data.RelatedTopics.slice(0, 4)) {
-            const topicText = topic.Text || '';
-            if (topicText.length > 20) {
-              const scoreData = _extractScore(topicText);
-              reviews.push({
-                title: _stripTags(topicText).split(/[-–—|]/)[0].trim().substring(0, 80),
-                source: topic.FirstURL ? new URL(topic.FirstURL).hostname : '',
-                url: topic.FirstURL || '',
-                score: scoreData ? scoreData.score : null,
-                maxScore: scoreData ? scoreData.maxScore : 10,
-                excerpt: _stripTags(topicText).substring(0, 250),
-                date: '',
-                imageUrl: topic.Icon ? (topic.Icon.URL || '') : ''
-              });
-            }
+        var response = await fetch(searchUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
           }
+        });
+
+        if (!response.ok) {
+          console.error('[GameReviews] HTTP error:', response.status);
+          return [];
         }
 
-        return reviews;
+        var html = await response.text();
+        var results = _parseDuckDuckGoHtml(html, gameName.trim());
+
+        // Sort: review results first, then by known source
+        results.sort(function (a, b) {
+          // Prioritize actual review results
+          if (a.isReview && !b.isReview) return -1;
+          if (!a.isReview && b.isReview) return 1;
+
+          // Then prioritize known gaming sources
+          var aKnown = KNOWN_SOURCES.some(function (s) { return a.domain.indexOf(s.domain) !== -1; });
+          var bKnown = KNOWN_SOURCES.some(function (s) { return b.domain.indexOf(s.domain) !== -1; });
+          if (aKnown && !bKnown) return -1;
+          if (!aKnown && bKnown) return 1;
+
+          return 0;
+        });
+
+        // Limit to 15 results
+        return results.slice(0, 15);
+
       } catch (err) {
-        console.error('[CleanNewsGameReviews] searchReviews error:', err);
+        console.error('[GameReviews] searchReviews error:', err);
         return [];
       }
     },
 
     /**
-     * Normalize any score to a 0-10 scale.
-     * @param {number} score - The score value
-     * @param {number} maxScore - The maximum possible score (10, 100, 5, etc.)
-     * @returns {number} Score normalized to 0-10 scale
+     * Normalize a score to 0-10 scale
+     * @param {number} score
+     * @param {number} maxScore
+     * @returns {number|null}
      */
     normalizeScore(score, maxScore) {
       if (typeof score !== 'number' || isNaN(score)) return null;
       maxScore = typeof maxScore === 'number' && maxScore > 0 ? maxScore : 10;
-      return Math.round((score / maxScore) * 10 * 10) / 10; // Round to 1 decimal
+      return Math.round((score / maxScore) * 10 * 10) / 10;
     },
 
     /**
-     * Get the DuckDuckGo search URL for a game review query.
-     * Useful for opening in a new tab.
+     * Get a direct DuckDuckGo search URL (for opening in a new tab)
      * @param {string} gameName
      * @returns {string}
      */
     getSearchUrl(gameName) {
-      return _buildSearchUrl(gameName + ' game review');
+      return 'https://duckduckgo.com/?q=' + encodeURIComponent(gameName + ' game review reseña');
     }
   };
 })();
@@ -230,4 +329,7 @@ const CleanNewsGameReviews = (() => {
 // Export globally
 if (typeof window !== 'undefined') {
   window.CleanNewsGameReviews = CleanNewsGameReviews;
+}
+if (typeof self !== 'undefined') {
+  self.CleanNewsGameReviews = CleanNewsGameReviews;
 }

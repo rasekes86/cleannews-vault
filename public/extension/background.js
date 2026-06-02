@@ -382,12 +382,12 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
       return true; // async
     }
 
-    // ── Search game reviews ─────────────────────────────────
+    // ── Search game reviews (real DuckDuckGo HTML search) ───
     case 'SEARCH_GAME_REVIEWS': {
       if (typeof CleanNewsGameReviews !== 'undefined') {
         CleanNewsGameReviews.searchReviews(message.query || '')
           .then(function (reviews) {
-            sendResponse({ success: true, reviews: reviews });
+            sendResponse({ success: true, reviews: reviews, query: message.query });
           })
           .catch(function (err) {
             sendResponse({ success: false, error: err.message });
@@ -456,13 +456,13 @@ chrome.runtime.onInstalled.addListener(function (details) {
   }).catch(function () {});
 
   if (details.reason === 'install') {
-    console.log('[CleanNews Vault] v5.0.0 instalado');
+    console.log('[CleanNews Vault] v5.1.0 instalado');
     createContextMenus();
     refreshBadge();
   }
 
   if (details.reason === 'update') {
-    console.log('[CleanNews Vault] Actualizado a v5.0.0 (antes: ' + details.previousVersion + ')');
+    console.log('[CleanNews Vault] Actualizado a v5.1.0 (antes: ' + details.previousVersion + ')');
     chrome.contextMenus.removeAll(function () {
       createContextMenus();
     });

@@ -1674,15 +1674,23 @@
 
     state.gameSearchQuery = query;
     state.isSearchingGames = true;
-    gameResults.innerHTML = '<div class="sp-loading"><span class="sp-spinner sp-spinner-small sp-spinner-dark"></span><span>Buscando...</span></div>';
+    gameResults.innerHTML = '<div class="sp-loading"><span class="sp-spinner sp-spinner-small sp-spinner-dark"></span><span>Buscando reviews reales...</span></div>';
     gameEmpty.classList.add('hidden');
 
     try {
-      if (typeof CleanNewsGameReviews !== 'undefined' && CleanNewsGameReviews.search) {
-        state.gameSearchResults = await CleanNewsGameReviews.search(query);
+      // Route through background.js (it has host_permissions for DuckDuckGo)
+      var response = await chrome.runtime.sendMessage({
+        type: 'SEARCH_GAME_REVIEWS',
+        query: query
+      });
+
+      if (response && response.success && Array.isArray(response.reviews)) {
+        state.gameSearchResults = response.reviews;
       } else {
-        // Fallback: generate mock results
-        state.gameSearchResults = generateMockReviews(query);
+        state.gameSearchResults = [];
+        if (response && response.error) {
+          showToast(response.error, 'error');
+        }
       }
       renderGameResults();
     } catch (err) {
@@ -1690,38 +1698,6 @@
       showToast('Error en b\u00fasqueda de reviews', 'error');
       state.isSearchingGames = false;
     }
-  }
-
-  function generateMockReviews(query) {
-    return [
-      {
-        id: 'mock_1',
-        title: query + ' - Review',
-        source: 'IGN',
-        score: 8.5,
-        scoreMax: 10,
-        excerpt: 'Un t\u00edtulo impresionante que redefine el g\u00e9nero con mec\u00e1nicas innovadoras y una narrativa envolvente.',
-        url: '#'
-      },
-      {
-        id: 'mock_2',
-        title: query + ' - An\u00e1lisis completo',
-        source: 'GameSpot',
-        score: 7.2,
-        scoreMax: 10,
-        excerpt: 'S\u00f3lido y entretenido, aunque algunos problemas t\u00e9cnicos le impiden alcanzar la excelencia.',
-        url: '#'
-      },
-      {
-        id: 'mock_3',
-        title: query + ' - Review en espa\u00f1ol',
-        source: 'Vandal',
-        score: 9.0,
-        scoreMax: 10,
-        excerpt: 'Una obra maestra que todo jugador deber\u00eda experimentar. Gr\u00e1ficos impresionantes y jugabilidad adictiva.',
-        url: '#'
-      }
-    ];
   }
 
   function renderGameResults() {
@@ -1736,31 +1712,62 @@
 
     gameEmpty.classList.add('hidden');
 
-    var html = '';
+    var html = '<div class="sp-game-results-count">' +
+      state.gameSearchResults.length + ' resultado' + (state.gameSearchResults.length !== 1 ? 's' : '') +
+      ' para <strong>' + escapeHtml(state.gameSearchQuery) + '</strong>' +
+      '</div>';
+
     state.gameSearchResults.forEach(function (review) {
-      var normalizedScore = review.score || 0;
-      if (review.scoreMax && review.scoreMax !== 10) {
-        normalizedScore = (review.score / review.scoreMax) * 10;
+      var normalizedScore = null;
+      if (typeof review.score === 'number' && !isNaN(review.score)) {
+        var maxScore = review.scoreMax || 10;
+        normalizedScore = maxScore !== 10 ? (review.score / maxScore) * 10 : review.score;
       }
-      var scoreClass = normalizedScore >= 8 ? ' sp-review-score-high' : normalizedScore >= 6 ? ' sp-review-score-mid' : ' sp-review-score-low';
+
+      var scoreHtml = '';
+      if (normalizedScore !== null) {
+        var scoreClass = normalizedScore >= 8 ? ' sp-review-score-high' : normalizedScore >= 6 ? ' sp-review-score-mid' : ' sp-review-score-low';
+        scoreHtml = '<span class="sp-review-score' + scoreClass + '">' + normalizedScore.toFixed(1) + '</span>';
+      }
+
+      var reviewBadge = review.isReview
+        ? '<span class="sp-review-badge">REVIEW</span>'
+        : '<span class="sp-review-badge sp-review-badge-info">INFO</span>';
+
+      var domainDisplay = review.domain || _extractDomain(review.url);
 
       html += '<div class="sp-review-card">' +
         '<div class="sp-review-card-header">' +
-          '<span class="sp-review-game-title">' + escapeHtml(review.title || state.gameSearchQuery) + '</span>' +
-          '<span class="sp-review-score' + scoreClass + '">' + normalizedScore.toFixed(1) + '</span>' +
+          '<div class="sp-review-card-title-row">' +
+            '<span class="sp-review-game-title">' + escapeHtml(review.title || state.gameSearchQuery) + '</span>' +
+            scoreHtml +
+          '</div>' +
+          '<div class="sp-review-card-meta">' +
+            reviewBadge +
+            '<span class="sp-review-source">' + escapeHtml(review.source || domainDisplay || 'Web') + '</span>' +
+            (domainDisplay ? '<span class="sp-review-domain">' + escapeHtml(domainDisplay) + '</span>' : '') +
+          '</div>' +
         '</div>' +
-        '<div class="sp-review-source">' + escapeHtml(review.source || 'Desconocido') + '</div>' +
-        '<div class="sp-review-excerpt">' + escapeHtml(review.excerpt || '') + '</div>' +
+        (review.excerpt ? '<div class="sp-review-excerpt">' + escapeHtml(review.excerpt) + '</div>' : '') +
         '<div class="sp-review-actions">' +
+          (review.url && review.url !== '#' ?
+            '<button class="sp-btn sp-btn-sm sp-btn-outline" data-action="open-review" data-review-id="' + escapeAttr(review.id) + '">Abrir</button>' : '') +
           '<button class="sp-btn sp-btn-sm sp-btn-primary" data-action="save-review" data-review-id="' + escapeAttr(review.id) + '">Guardar</button>' +
         '</div>' +
         '</div>';
     });
 
-    // Bulk save
+    // Bulk save button
     if (state.gameSearchResults.length > 1) {
-      html += '<div style="margin-top:10px;">' +
+      html += '<div style="margin-top:12px;">' +
         '<button class="sp-btn sp-btn-sm sp-btn-secondary sp-btn-full" data-action="save-all-reviews">Guardar todas (' + state.gameSearchResults.length + ')</button>' +
+        '</div>';
+    }
+
+    // External search link
+    if (typeof CleanNewsGameReviews !== 'undefined') {
+      html += '<div style="margin-top:8px; text-align:center;">' +
+        '<a class="sp-link" href="' + escapeAttr(CleanNewsGameReviews.getSearchUrl(state.gameSearchQuery)) + '" target="_blank" rel="noopener">Buscar m\u00e1s en DuckDuckGo \u2197</a>' +
         '</div>';
     }
 
@@ -1768,53 +1775,129 @@
     bindGameReviewEvents();
   }
 
+  function _extractDomain(url) {
+    if (!url) return '';
+    try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return ''; }
+  }
+
+  async function saveReviewAsArticle(review) {
+    // Build rich content with all review metadata
+    var scoreText = '';
+    if (typeof review.score === 'number' && !isNaN(review.score)) {
+      var normalizedScore = review.scoreMax && review.scoreMax !== 10
+        ? (review.score / review.scoreMax) * 10
+        : review.score;
+      scoreText = 'Puntuaci\u00f3n: ' + review.score + '/' + (review.scoreMax || 10) + ' (normalizada: ' + normalizedScore.toFixed(1) + '/10)\n\n';
+    }
+
+    var metaInfo = '';
+    metaInfo += 'Fuente: ' + (review.source || review.domain || 'Desconocido') + '\n';
+    if (review.url) metaInfo += 'Enlace: ' + review.url + '\n';
+    metaInfo += 'Juego: ' + state.gameSearchQuery + '\n';
+    metaInfo += 'Guardado: ' + new Date().toLocaleDateString('es-ES') + '\n\n';
+
+    var fullContent = metaInfo + scoreText;
+    if (review.excerpt) {
+      fullContent += review.excerpt + '\n\n';
+    }
+    if (review.url) {
+      fullContent += '---\nLee la review completa en: ' + review.url;
+    }
+
+    // Build HTML version for reader
+    var contentHtml = '<div class="cnv-review">';
+    contentHtml += '<div class="cnv-review-meta">';
+    contentHtml += '<p><strong>Fuente:</strong> ' + escapeHtml(review.source || review.domain || 'Desconocido') + '</p>';
+    if (review.url) contentHtml += '<p><strong>Enlace:</strong> <a href="' + escapeAttr(review.url) + '" target="_blank">' + escapeHtml(review.url) + '</a></p>';
+    contentHtml += '<p><strong>Juego:</strong> ' + escapeHtml(state.gameSearchQuery) + '</p>';
+    contentHtml += '</div>';
+    if (typeof review.score === 'number' && !isNaN(review.score)) {
+      var normalizedScore = review.scoreMax && review.scoreMax !== 10
+        ? (review.score / review.scoreMax) * 10
+        : review.score;
+      contentHtml += '<div class="cnv-review-score">Puntuaci\u00f3n: <strong>' + review.score + '/' + (review.scoreMax || 10) + '</strong>';
+      contentHtml += ' <span>(normalizada: ' + normalizedScore.toFixed(1) + '/10)</span></div>';
+    }
+    if (review.excerpt) {
+      contentHtml += '<div class="cnv-review-excerpt"><p>' + escapeHtml(review.excerpt) + '</p></div>';
+    }
+    if (review.url) {
+      contentHtml += '<hr><p><a href="' + escapeAttr(review.url) + '" target="_blank">Lee la review completa \u2197</a></p>';
+    }
+    contentHtml += '</div>';
+
+    var articleData = {
+      title: review.title || state.gameSearchQuery + ' - Review',
+      author: review.source || review.domain || '',
+      source: review.source || review.domain || 'Game Review',
+      excerpt: review.excerpt || '',
+      contentText: fullContent,
+      contentHtml: contentHtml,
+      sourceUrl: review.url || '',
+      tags: ['videojuegos', 'review', state.gameSearchQuery.toLowerCase()],
+      wordCount: fullContent.split(/\s+/).filter(Boolean).length,
+      readTime: Math.max(1, Math.ceil(fullContent.split(/\s+/).filter(Boolean).length / 200))
+    };
+
+    var result = await CleanNewsStorage.saveArticle(articleData);
+    return result;
+  }
+
   function bindGameReviewEvents() {
+    // Open review in new tab
+    gameResults.querySelectorAll('[data-action="open-review"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var reviewId = btn.getAttribute('data-review-id');
+        var review = state.gameSearchResults.find(function (r) { return r.id === reviewId; });
+        if (review && review.url && review.url !== '#') {
+          chrome.tabs.create({ url: review.url });
+        }
+      });
+    });
+
+    // Save individual review
     gameResults.querySelectorAll('[data-action="save-review"]').forEach(function (btn) {
       btn.addEventListener('click', async function () {
         var reviewId = btn.getAttribute('data-review-id');
         var review = state.gameSearchResults.find(function (r) { return r.id === reviewId; });
         if (!review) return;
 
-        var articleData = {
-          title: review.title || state.gameSearchQuery,
-          source: review.source || 'Review',
-          excerpt: review.excerpt || '',
-          tags: ['videojuegos', 'review', state.gameSearchQuery],
-          contentText: review.excerpt || '',
-          sourceUrl: review.url || ''
-        };
+        btn.textContent = 'Guardando...';
+        btn.disabled = true;
 
-        var result = await CleanNewsStorage.saveArticle(articleData);
+        var result = await saveReviewAsArticle(review);
         if (result.success) {
-          showToast('Review guardada', 'success');
-          btn.textContent = 'Guardado';
-          btn.disabled = true;
+          showToast('Review guardada en tu biblioteca', 'success');
+          btn.textContent = '✓ Guardado';
           await loadAllData();
           try { chrome.runtime.sendMessage({ type: 'ARTICLE_SAVED' }); } catch (ex) { /* ignore */ }
         } else {
           showToast(result.error || 'Error al guardar', 'error');
+          btn.textContent = 'Guardar';
+          btn.disabled = false;
         }
       });
     });
 
+    // Save all reviews
     var saveAllBtn = gameResults.querySelector('[data-action="save-all-reviews"]');
     if (saveAllBtn) {
       saveAllBtn.addEventListener('click', async function () {
+        saveAllBtn.textContent = 'Guardando...';
+        saveAllBtn.disabled = true;
         var saved = 0;
+        var skipped = 0;
         for (var i = 0; i < state.gameSearchResults.length; i++) {
           var review = state.gameSearchResults[i];
-          var articleData = {
-            title: review.title || state.gameSearchQuery,
-            source: review.source || 'Review',
-            excerpt: review.excerpt || '',
-            tags: ['videojuegos', 'review', state.gameSearchQuery],
-            contentText: review.excerpt || '',
-            sourceUrl: review.url || ''
-          };
-          var result = await CleanNewsStorage.saveArticle(articleData);
+          var result = await saveReviewAsArticle(review);
           if (result.success) saved++;
+          else skipped++;
         }
-        showToast(saved + ' review' + (saved !== 1 ? 's' : '') + ' guardada' + (saved !== 1 ? 's' : ''), 'success');
+        saveAllBtn.textContent = '✓ ' + saved + ' guardada' + (saved !== 1 ? 's' : '');
+        saveAllBtn.disabled = true;
+        var msg = saved + ' review' + (saved !== 1 ? 's' : '') + ' guardada' + (saved !== 1 ? 's' : '');
+        if (skipped > 0) msg += ' (' + skipped + ' duplicada' + (skipped !== 1 ? 's' : '') + ')';
+        showToast(msg, 'success');
         await loadAllData();
         try { chrome.runtime.sendMessage({ type: 'ARTICLE_SAVED' }); } catch (ex) { /* ignore */ }
       });
