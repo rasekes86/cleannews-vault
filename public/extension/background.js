@@ -1,6 +1,7 @@
-// CleanNews Vault v5.0 - Background Service Worker
+// CleanNews Vault v5.3 - Background Service Worker
 // Side Panel opener, on-demand script injection, badge management,
 // batch extract, tab management, snippet saving, game review search.
+// v5.3: Added fetch+DOMParser extraction, fixed batch extract tabId.
 
 // ── Import utility modules ──────────────────────────────
 try {
@@ -8,11 +9,13 @@ try {
     'utils/db.js',
     'utils/storage.js',
     'utils/snippets.js',
-    'utils/game-reviews.js'
+    'utils/game-reviews.js',
+    'utils/article-extractor.js'
   );
 } catch (e) {
   console.warn('[CleanNews Vault] No se pudieron importar utilidades:', e);
 }
+
 
 // ── Constants ──────────────────────────────────────────────
 var BADGE_COLOR = '#059669';
@@ -205,53 +208,28 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   switch (message.type) {
 
     // ── On-demand extraction via scripting API ─────────────
+    // FIX v5.3: Accept optional tabId for batch extract support
     case 'EXTRACT_PAGE': {
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        if (!tabs || tabs.length === 0) {
-          sendResponse({ success: false, error: 'No hay pestaña activa' });
-          return;
-        }
+      var targetTabId = message.tabId || null;
 
-        var tab = tabs[0];
-
-        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) {
-          sendResponse({ success: false, error: 'No se puede extraer de esta página' });
-          return;
-        }
-
-        // Step 1: Inject readability.js first
-        chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ['content/readability.js']
-        }).then(function () {
-          // Step 2: Inject bridge function that calls CleanNewsReadability().parse()
-          return chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: function () {
-              try {
-                if (typeof CleanNewsReadability === 'undefined') {
-                  return { success: false, error: 'CleanNewsReadability no disponible' };
-                }
-                var reader = new CleanNewsReadability();
-                var result = reader.parse();
-                return { success: true, data: result };
-              } catch (err) {
-                return { success: false, error: err.message || 'Error en extracción' };
-              }
-            }
-          });
-        }).then(function (injectionResults) {
-          if (injectionResults && injectionResults.length > 0) {
-            var result = injectionResults[0].result;
-            sendResponse(result);
-          } else {
-            sendResponse({ success: false, error: 'No se pudo ejecutar la extracción' });
+      if (targetTabId) {
+        // Extract from specific tab (batch extract)
+        _extractFromTab(targetTabId, sendResponse);
+      } else {
+        // Extract from active tab
+        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+          if (!tabs || tabs.length === 0) {
+            sendResponse({ success: false, error: 'No hay pestaña activa' });
+            return;
           }
-        }).catch(function (err) {
-          sendResponse({ success: false, error: err.message || 'Error al inyectar script' });
+          var tab = tabs[0];
+          if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) {
+            sendResponse({ success: false, error: 'No se puede extraer de esta página' });
+            return;
+          }
+          _extractFromTab(tab.id, sendResponse);
         });
-      });
-
+      }
       return true; // async response
     }
 
@@ -467,7 +445,9 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
       return true; // async
     }
 
-    // ── Extract full content from a review URL ─────────────
+    // ── Extract full content from a URL (v5.3: fetch + DOMParser) ─
+    // PRIMARY METHOD: Fetch HTML and parse with DOMParser (no hidden tabs needed)
+    // FALLBACK: Hidden tab + readability injection (for JS-heavy sites)
     case 'EXTRACT_REVIEW_URL': {
       var targetUrl = message.url;
       if (!targetUrl || !targetUrl.startsWith('http')) {
@@ -475,58 +455,24 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         return true;
       }
 
-      // Create a hidden tab, inject readability, extract content, then close
-      chrome.tabs.create({ url: targetUrl, active: false }, function (tab) {
-        // Wait for page to load
-        function tryExtract(attemptsLeft) {
-          if (attemptsLeft <= 0) {
-            try { chrome.tabs.remove(tab.id); } catch (e) {}
-            sendResponse({ success: false, error: 'Tiempo de espera agotado al cargar la página' });
-            return;
+      // Method 1: fetch + DOMParser (fast, no tabs needed)
+      if (typeof CleanNewsExtractor !== 'undefined') {
+        CleanNewsExtractor.fetchAndExtract(targetUrl).then(function (articleData) {
+          if (articleData) {
+            console.log('[CleanNews Vault] Extracted via fetch+DOMParser:', targetUrl, '(wordCount:', articleData.wordCount);
+            sendResponse({ success: true, data: articleData, method: 'fetch' });
+          } else {
+            // Fallback: hidden tab + readability injection
+            console.log('[CleanNews Vault] fetch+DOMParser failed, trying hidden tab fallback for:', targetUrl);
+            _extractViaHiddenTab(targetUrl, sendResponse);
           }
-
-          setTimeout(function () {
-            // Inject readability.js first
-            chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              files: ['content/readability.js']
-            }).then(function () {
-              // Extract content
-              return chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: function () {
-                  try {
-                    if (typeof CleanNewsReadability === 'undefined') {
-                      return { success: false, error: 'Readability no disponible' };
-                    }
-                    var reader = new CleanNewsReadability();
-                    return { success: true, data: reader.parse() };
-                  } catch (err) {
-                    return { success: false, error: err.message };
-                  }
-                }
-              });
-            }).then(function (injectionResults) {
-              try { chrome.tabs.remove(tab.id); } catch (e) {}
-              if (injectionResults && injectionResults.length > 0 && injectionResults[0].result) {
-                sendResponse(injectionResults[0].result);
-              } else {
-                sendResponse({ success: false, error: 'No se pudo extraer contenido' });
-              }
-            }).catch(function (err) {
-              // If tab is still loading, retry
-              if (attemptsLeft > 1) {
-                tryExtract(attemptsLeft - 1);
-              } else {
-                try { chrome.tabs.remove(tab.id); } catch (e) {}
-                sendResponse({ success: false, error: err.message });
-              }
-            });
-          }, 1500); // 1.5s wait between retries
-        }
-
-        tryExtract(4); // max 4 attempts = 6 seconds
-      });
+        }).catch(function (err) {
+          console.log('[CleanNews Vault] fetch+DOMParser error, trying hidden tab fallback:', err.message);
+          _extractViaHiddenTab(targetUrl, sendResponse);
+        });
+      } else {
+        _extractViaHiddenTab(targetUrl, sendResponse);
+      }
       return true; // async
     }
 
@@ -603,16 +549,108 @@ chrome.runtime.onInstalled.addListener(function (details) {
   }).catch(function () {});
 
   if (details.reason === 'install') {
-    console.log('[CleanNews Vault] v5.2.0 instalado');
+    console.log('[CleanNews Vault] v5.3.0 instalado');
     createContextMenus();
     refreshBadge();
   }
 
   if (details.reason === 'update') {
-    console.log('[CleanNews Vault] Actualizado a v5.2.0 (antes: ' + details.previousVersion + ')');
+    console.log('[CleanNews Vault] Actualizado a v5.3.0 (antes: ' + details.previousVersion + ')');
     chrome.contextMenus.removeAll(function () {
       createContextMenus();
     });
-    refreshBadge();
+  refreshBadge();
   }
 });
+
+// ═══════════════════════════════════════════════════════════
+// HELPER: Extract from specific tab (used by EXTRACT_PAGE)
+// ═══════════════════════════════════════════════════════════
+
+function _extractFromTab(tabId, sendResponse) {
+  // Step 1: Inject readability.js
+  chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    files: ['content/readability.js']
+  }).then(function () {
+    // Step 2: Extract content
+    return chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: function () {
+        try {
+          if (typeof CleanNewsReadability === 'undefined') {
+            return { success: false, error: 'CleanNewsReadability no disponible' };
+          }
+          var reader = new CleanNewsReadability();
+          var result = reader.parse();
+          return { success: true, data: result };
+        } catch (err) {
+          return { success: false, error: err.message || 'Error en extracción' };
+        }
+      }
+    });
+  }).then(function (injectionResults) {
+    if (injectionResults && injectionResults.length > 0) {
+      var result = injectionResults[0].result;
+      sendResponse(result);
+    } else {
+      sendResponse({ success: false, error: 'No se pudo ejecutar la extracción' });
+  }
+  }).catch(function (err) {
+    sendResponse({ success: false, error: err.message || 'Error al inyectar script' });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPER: Extract via hidden tab + readability (fallback method)
+// ═══════════════════════════════════════════════════════════
+
+function _extractViaHiddenTab(targetUrl, sendResponse) {
+  chrome.tabs.create({ url: targetUrl, active: false }, function (tab) {
+    function tryExtract(attemptsLeft) {
+      if (attemptsLeft <= 0) {
+        try { chrome.tabs.remove(tab.id); } catch (e) {}
+        sendResponse({ success: false, error: 'Tiempo de espera agotado' });
+        return;
+      }
+
+      setTimeout(function () {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content/readability.js']
+        }).then(function () {
+          return chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: function () {
+              try {
+                if (typeof CleanNewsReadability === 'undefined') {
+                  return { success: false, error: 'Readability no disponible' };
+                }
+                var reader = new CleanNewsReadability();
+                return { success: true, data: reader.parse() };
+              } catch (err) {
+                return { success: false, error: err.message };
+              }
+            }
+          });
+        }).then(function (injectionResults) {
+          try { chrome.tabs.remove(tab.id); } catch (e) {}
+          if (injectionResults && injectionResults.length > 0 && injectionResults[0].result) {
+            sendResponse(injectionResults[0].result);
+          } else {
+            sendResponse({ success: false, error: 'No se pudo extraer contenido' });
+          }
+        }).catch(function (err) {
+          if (attemptsLeft > 1) {
+            tryExtract(attemptsLeft - 1);
+          } else {
+            try { chrome.tabs.remove(tab.id); } catch (e) {}
+            sendResponse({ success: false, error: err.message });
+          }
+        });
+      }, 1500);
+    }
+
+    tryExtract(4);
+  });
+}

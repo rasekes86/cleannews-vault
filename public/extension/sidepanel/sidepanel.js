@@ -1962,7 +1962,8 @@
   }
 
   /**
-   * Extract full content from a review URL via hidden tab + readability.js
+   * Extract full content from a review URL.
+   * v5.3: Uses fetch+DOMParser as primary, hidden tab as fallback.
    */
   async function extractFullReviewContent(url) {
     try {
@@ -1971,8 +1972,11 @@
         url: url
       });
       if (response && response.success && response.data) {
+        var wc = response.data.wordCount || 0;
+        console.log('[CleanNews] Full content extracted:', wc, 'words from:', url, 'method:', response.method || 'unknown');
         return response.data;
       }
+      console.log('[CleanNews] Full content extraction failed for:', url);
       return null;
     } catch (err) {
       console.error('[CleanNews] Full content extraction error:', err);
@@ -1986,6 +1990,12 @@
     if (review.url && review.url.startsWith('http')) {
       showToast('Extrayendo contenido completo...', 'info');
       fullContent = await extractFullReviewContent(review.url);
+
+    if (fullContent) {
+      var wc = fullContent.wordCount || 0;
+      console.log('[CleanNews] Saving review with full content:', review.title, '(' + wc + ' words)');
+    } else {
+      console.log('[CleanNews] Saving review with snippet only:', review.title);
     }
 
     // Build content
