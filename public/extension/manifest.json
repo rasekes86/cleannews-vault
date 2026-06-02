@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "CleanNews Vault",
-  "version": "4.0.0",
-  "description": "Extrae y guarda artículos limpios desde un Side Panel. Biblioteca personal con colecciones, búsqueda, modo oscuro y exportación.",
+  "version": "5.0.0",
+  "description": "Extrae y guarda artículos limpios desde un Side Panel. Biblioteca personal con colecciones, notas, resaltados, fragmentos, herramientas, pomodoro y exportación.",
   "permissions": [
     "activeTab",
     "storage",
     "scripting",
     "sidePanel",
-    "contextMenus"
+    "contextMenus",
+    "tabs"
   ],
   "action": {
     "default_icon": {
@@ -31,6 +32,27 @@
         "mac": "Alt+E"
       },
       "description": "Abrir CleanNews Vault"
+    },
+    "save-current-page": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "Guardar página actual"
+    },
+    "toggle-favorite": {
+      "suggested_key": {
+        "default": "Alt+F",
+        "mac": "Alt+F"
+      },
+      "description": "Marcar como favorito"
+    },
+    "next-in-queue": {
+      "suggested_key": {
+        "default": "Alt+N",
+        "mac": "Alt+N"
+      },
+      "description": "Siguiente en cola de lectura"
     }
   },
   "icons": {

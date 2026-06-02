@@ -41,6 +41,48 @@
         <button id="edit-btn" class="btn btn-ghost btn-sm" title="Editar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
         </button>
+
+        <!-- Highlight Button -->
+        <button id="highlight-btn" class="btn btn-ghost btn-sm" title="Modo resaltado">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+        </button>
+
+        <!-- Share Button -->
+        <div class="share-dropdown">
+          <button id="share-btn" class="btn btn-ghost btn-sm" title="Compartir">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+          </button>
+          <div id="share-menu" class="share-menu hidden">
+            <button data-share="link" class="share-option">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              Copiar enlace
+            </button>
+            <button data-share="content" class="share-option">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Copiar contenido
+            </button>
+            <button data-share="text" class="share-option">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              Copiar como texto
+            </button>
+          </div>
+        </div>
+
+        <!-- Pomodoro Button -->
+        <button id="pomodoro-btn" class="btn btn-ghost btn-sm" title="Pomodoro">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"></circle><polyline points="12 9 12 13 15 13"></polyline><line x1="12" y1="1" x2="12" y2="3"></line><line x1="8" y1="1" x2="8" y2="3"></line><line x1="16" y1="1" x2="16" y2="3"></line></svg>
+        </button>
+
+        <!-- Focus Mode Button -->
+        <button id="focus-btn" class="btn btn-ghost btn-sm" title="Modo concentración">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+
+        <!-- Annotations Button -->
+        <button id="annotations-btn" class="btn btn-ghost btn-sm" title="Anotaciones">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </button>
+
         <div class="export-dropdown">
           <button id="export-btn" class="btn btn-ghost btn-sm" title="Exportar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -70,8 +112,44 @@
     </div>
   </header>
 
+  <!-- TOC Toggle Button (floating) -->
+  <button id="toc-toggle" class="btn toc-toggle-btn" title="Tabla de contenidos">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+  </button>
+
+  <!-- TOC Sidebar -->
+  <aside id="toc-sidebar" class="toc-sidebar">
+    <div class="toc-sidebar-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      <span>Índice</span>
+    </div>
+    <nav id="toc-list" class="toc-list"></nav>
+  </aside>
+
+  <!-- Highlight Toolbar (floating) -->
+  <div id="highlight-toolbar" class="highlight-toolbar hidden">
+    <button class="highlight-color-btn" data-color="yellow" title="Amarillo" style="background:#fef08a"></button>
+    <button class="highlight-color-btn" data-color="green" title="Verde" style="background:#bbf7d0"></button>
+    <button class="highlight-color-btn" data-color="red" title="Rojo" style="background:#fecaca"></button>
+    <button class="highlight-color-btn" data-color="blue" title="Azul" style="background:#bfdbfe"></button>
+    <div class="highlight-toolbar-divider"></div>
+    <button id="highlight-note-btn" class="highlight-note-btn" title="Añadir nota">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      <span>Nota</span>
+    </button>
+  </div>
+
+  <!-- Highlight Note Popup -->
+  <div id="highlight-note-popup" class="highlight-note-popup hidden">
+    <textarea id="highlight-note-input" class="highlight-note-input" rows="3" placeholder="Escribe tu nota..."></textarea>
+    <div class="highlight-note-actions">
+      <button id="highlight-note-save" class="btn btn-primary btn-sm">Guardar</button>
+      <button id="highlight-note-cancel" class="btn btn-secondary btn-sm">Cancelar</button>
+    </div>
+  </div>
+
   <!-- Main Content -->
-  <main class="reader-main">
+  <main id="reader-main" class="reader-main">
     <article class="reader-article">
       <!-- View Mode -->
       <div id="view-mode" class="view-mode">
@@ -156,6 +234,48 @@
     </article>
   </main>
 
+  <!-- Annotations Panel (slide-in from right) -->
+  <div id="annotations-panel" class="annotations-panel">
+    <div class="annotations-panel-header">
+      <h3 class="annotations-panel-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        Anotaciones
+      </h3>
+      <button id="annotations-close" class="btn btn-ghost btn-sm btn-xs" title="Cerrar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <div id="annotations-list" class="annotations-list">
+      <div class="annotations-empty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted)"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <p>No hay anotaciones aún</p>
+        <p class="annotations-empty-hint">Selecciona texto y resáltalo para crear anotaciones</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pomodoro Widget (overlay) -->
+  <div id="pomodoro-widget" class="pomodoro-widget hidden">
+    <div class="pomodoro-widget-inner">
+      <div class="pomodoro-mode-indicator">
+        <span id="pomodoro-mode-label" class="pomodoro-mode-label">Trabajo</span>
+        <span id="pomodoro-completed" class="pomodoro-completed hidden">0</span>
+      </div>
+      <div id="pomodoro-timer" class="pomodoro-timer">25:00</div>
+      <div class="pomodoro-controls">
+        <button id="pomodoro-play" class="btn btn-primary btn-sm" title="Iniciar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        </button>
+        <button id="pomodoro-reset" class="btn btn-ghost btn-sm" title="Reiniciar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+        </button>
+        <button id="pomodoro-close" class="btn btn-ghost btn-sm" title="Cerrar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Delete Modal -->
   <div id="delete-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
@@ -181,6 +301,8 @@
   <script src="../utils/auto-tagger.js"></script>
   <script src="../utils/storage.js"></script>
   <script src="../utils/export.js"></script>
+  <script src="../utils/highlights.js"></script>
+  <script src="../utils/pomodoro.js"></script>
   <script src="reader.js"></script>
 </body>
 </html>

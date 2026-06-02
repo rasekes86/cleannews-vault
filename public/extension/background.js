@@ -1,9 +1,15 @@
-// CleanNews Vault v4.0 - Background Service Worker
-// Side Panel opener, on-demand script injection, badge management.
+// CleanNews Vault v5.0 - Background Service Worker
+// Side Panel opener, on-demand script injection, badge management,
+// batch extract, tab management, snippet saving, game review search.
 
 // ── Import utility modules ──────────────────────────────
 try {
-  importScripts('utils/db.js', 'utils/storage.js');
+  importScripts(
+    'utils/db.js',
+    'utils/storage.js',
+    'utils/snippets.js',
+    'utils/game-reviews.js'
+  );
 } catch (e) {
   console.warn('[CleanNews Vault] No se pudieron importar utilidades:', e);
 }
@@ -47,14 +53,36 @@ function createContextMenus() {
     title: 'Extraer enlace con CleanNews Vault',
     contexts: ['link']
   });
+  chrome.contextMenus.create({
+    id: 'save-selection',
+    title: 'Guardar fragmento seleccionado',
+    contexts: ['selection']
+  });
 }
 
 chrome.contextMenus.onClicked.addListener(function (info, tab) {
   if (info.menuItemId === 'extract-page') {
-    // Open side panel (it will get active tab info on its own)
     chrome.sidePanel.open({ tabId: tab.id }).catch(function () {});
   } else if (info.menuItemId === 'extract-link' && info.linkUrl) {
     chrome.tabs.create({ url: info.linkUrl });
+  } else if (info.menuItemId === 'save-selection' && info.selectionText) {
+    // Save selected text as a snippet
+    if (typeof CleanNewsSnippets !== 'undefined') {
+      CleanNewsDB.init().then(function () {
+        return CleanNewsSnippets.save({
+          text: info.selectionText,
+          sourceUrl: tab && tab.url ? tab.url : '',
+          sourceTitle: tab && tab.title ? tab.title : '',
+          tags: []
+        });
+      }).then(function (result) {
+        if (result && result.success) {
+          updateBadge(CleanNewsDB.count('articles'));
+        }
+      }).catch(function (err) {
+        console.error('[CleanNews Vault] Error guardando fragmento:', err);
+      });
+    }
   }
 });
 
@@ -63,8 +91,110 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
 // ═══════════════════════════════════════════════════════════
 
 chrome.action.onClicked.addListener(function (tab) {
-  // Open side panel for the current window
   chrome.sidePanel.open({ tabId: tab.id }).catch(function () {});
+});
+
+// ═══════════════════════════════════════════════════════════
+// KEYBOARD COMMANDS
+// ═══════════════════════════════════════════════════════════
+
+chrome.commands.onCommand.addListener(function (command) {
+  switch (command) {
+    case 'save-current-page': {
+      // Extract and save the active tab
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        if (!tabs || tabs.length === 0) return;
+        var tab = tabs[0];
+        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) return;
+
+        // Inject readability and extract
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content/readability.js']
+        }).then(function () {
+          return chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: function () {
+              try {
+                if (typeof CleanNewsReadability === 'undefined') {
+                  return { success: false, error: 'CleanNewsReadability no disponible' };
+                }
+                var reader = new CleanNewsReadability();
+                return { success: true, data: reader.parse() };
+              } catch (err) {
+                return { success: false, error: err.message };
+              }
+            }
+          });
+        }).then(function (injectionResults) {
+          if (injectionResults && injectionResults.length > 0 && injectionResults[0].result && injectionResults[0].result.success) {
+            var articleData = injectionResults[0].result.data;
+            if (typeof CleanNewsStorage !== 'undefined') {
+              CleanNewsStorage.saveArticle(articleData).then(function (result) {
+                if (result.success) {
+                  refreshBadge();
+                }
+              });
+            }
+          }
+        }).catch(function (err) {
+          console.error('[CleanNews Vault] Alt+S save error:', err);
+        });
+      });
+      break;
+    }
+
+    case 'toggle-favorite': {
+      // Toggle favorite of the active tab's saved article (match by URL)
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        if (!tabs || tabs.length === 0) return;
+        var tab = tabs[0];
+        if (!tab.url) return;
+
+        if (typeof CleanNewsStorage !== 'undefined') {
+          CleanNewsDB.init().then(function () {
+            return CleanNewsStorage.getArticles();
+          }).then(function (articles) {
+            var article = articles.find(function (a) {
+              return a.sourceUrl === tab.url;
+            });
+            if (article) {
+              return CleanNewsStorage.toggleFavorite(article.id);
+            }
+            return null;
+          }).then(function (result) {
+            // Favorite toggled (or not found)
+          }).catch(function (err) {
+            console.error('[CleanNews Vault] Alt+F favorite error:', err);
+          });
+        }
+      });
+      break;
+    }
+
+    case 'next-in-queue': {
+      // Open the first unread article
+      if (typeof CleanNewsStorage !== 'undefined') {
+        CleanNewsDB.init().then(function () {
+          return CleanNewsStorage.filterArticles({
+            readStatus: 'unread',
+            sortBy: 'date',
+            sortDir: 'asc'
+          });
+        }).then(function (articles) {
+          if (articles && articles.length > 0) {
+            var article = articles[0];
+            chrome.tabs.create({
+              url: chrome.runtime.getURL('reader/reader.html?id=' + article.id)
+            });
+          }
+        }).catch(function (err) {
+          console.error('[CleanNews Vault] Alt+N next-in-queue error:', err);
+        });
+      }
+      break;
+    }
+  }
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -76,7 +206,6 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
     // ── On-demand extraction via scripting API ─────────────
     case 'EXTRACT_PAGE': {
-      // Get the active tab
       chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         if (!tabs || tabs.length === 0) {
           sendResponse({ success: false, error: 'No hay pestaña activa' });
@@ -85,7 +214,6 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
         var tab = tabs[0];
 
-        // Cannot inject into chrome:// or other restricted pages
         if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) {
           sendResponse({ success: false, error: 'No se puede extraer de esta página' });
           return;
@@ -125,6 +253,149 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
       });
 
       return true; // async response
+    }
+
+    // ── Batch extract: extract all tabs in current window ───
+    case 'BATCH_EXTRACT': {
+      chrome.tabs.query({ currentWindow: true }, function (tabs) {
+        if (!tabs || tabs.length === 0) {
+          sendResponse({ success: true, results: [] });
+          return;
+        }
+
+        var extractable = tabs.filter(function (t) {
+          return t.url && !t.url.startsWith('chrome://') &&
+            !t.url.startsWith('chrome-extension://') &&
+            !t.url.startsWith('about:') &&
+            !t.url.startsWith('chrome-search://');
+        });
+
+        if (extractable.length === 0) {
+          sendResponse({ success: true, results: [] });
+          return;
+        }
+
+        var results = [];
+        var completed = 0;
+
+        function processTab(tabObj) {
+          // Step 1: Inject readability.js
+          chrome.scripting.executeScript({
+            target: { tabId: tabObj.id },
+            files: ['content/readability.js']
+          }).then(function () {
+            // Step 2: Extract content
+            return chrome.scripting.executeScript({
+              target: { tabId: tabObj.id },
+              func: function () {
+                try {
+                  if (typeof CleanNewsReadability === 'undefined') {
+                    return { success: false, error: 'CleanNewsReadability no disponible' };
+                  }
+                  var reader = new CleanNewsReadability();
+                  return { success: true, data: reader.parse() };
+                } catch (err) {
+                  return { success: false, error: err.message };
+                }
+              }
+            });
+          }).then(function (injectionResults) {
+            if (injectionResults && injectionResults.length > 0) {
+              var res = injectionResults[0].result;
+              results.push({
+                tabId: tabObj.id,
+                url: tabObj.url,
+                title: tabObj.title,
+                success: res && res.success,
+                data: res && res.success ? res.data : null,
+                error: res && res.error ? res.error : null
+              });
+            } else {
+              results.push({
+                tabId: tabObj.id,
+                url: tabObj.url,
+                title: tabObj.title,
+                success: false,
+                error: 'No se pudo ejecutar la extracción'
+              });
+            }
+            completed++;
+            if (completed === extractable.length) {
+              sendResponse({ success: true, results: results });
+            }
+          }).catch(function (err) {
+            results.push({
+              tabId: tabObj.id,
+              url: tabObj.url,
+              title: tabObj.title,
+              success: false,
+              error: err.message || 'Error al inyectar script'
+            });
+            completed++;
+            if (completed === extractable.length) {
+              sendResponse({ success: true, results: results });
+            }
+          });
+        }
+
+        // Process each tab sequentially to avoid race conditions
+        extractable.forEach(function (t) {
+          processTab(t);
+        });
+      });
+
+      return true; // async response
+    }
+
+    // ── Get all tabs in current window ───────────────────────
+    case 'GET_ALL_TABS': {
+      chrome.tabs.query({ currentWindow: true }, function (tabs) {
+        if (!tabs) {
+          sendResponse({ success: true, tabs: [] });
+          return;
+        }
+        var tabList = tabs.map(function (t) {
+          return {
+            id: t.id,
+            url: t.url || '',
+            title: t.title || ''
+          };
+        });
+        sendResponse({ success: true, tabs: tabList });
+      });
+      return true;
+    }
+
+    // ── Save text snippet ───────────────────────────────────
+    case 'SAVE_TEXT_SNIPPET': {
+      if (typeof CleanNewsSnippets !== 'undefined') {
+        CleanNewsDB.init().then(function () {
+          return CleanNewsSnippets.save(message.snippet || {});
+        }).then(function (result) {
+          sendResponse(result);
+        }).catch(function (err) {
+          sendResponse({ success: false, error: err.message });
+        });
+      } else {
+        sendResponse({ success: false, error: 'CleanNewsSnippets no disponible' });
+      }
+      return true; // async
+    }
+
+    // ── Search game reviews ─────────────────────────────────
+    case 'SEARCH_GAME_REVIEWS': {
+      if (typeof CleanNewsGameReviews !== 'undefined') {
+        CleanNewsGameReviews.searchReviews(message.query || '')
+          .then(function (reviews) {
+            sendResponse({ success: true, reviews: reviews });
+          })
+          .catch(function (err) {
+            sendResponse({ success: false, error: err.message });
+          });
+      } else {
+        sendResponse({ success: false, error: 'CleanNewsGameReviews no disponible' });
+      }
+      return true; // async
     }
 
     // ── Article saved/updated — refresh badge ──────────────
@@ -185,13 +456,13 @@ chrome.runtime.onInstalled.addListener(function (details) {
   }).catch(function () {});
 
   if (details.reason === 'install') {
-    console.log('[CleanNews Vault] v4.0.0 instalado');
+    console.log('[CleanNews Vault] v5.0.0 instalado');
     createContextMenus();
     refreshBadge();
   }
 
   if (details.reason === 'update') {
-    console.log('[CleanNews Vault] Actualizado a v4.0.0 (antes: ' + details.previousVersion + ')');
+    console.log('[CleanNews Vault] Actualizado a v5.0.0 (antes: ' + details.previousVersion + ')');
     chrome.contextMenus.removeAll(function () {
       createContextMenus();
     });

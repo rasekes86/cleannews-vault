@@ -1,4 +1,4 @@
-/* CleanNews Vault v2.0 - Reader Styles */
+/* CleanNews Vault v5.0 - Reader Styles */
 
 /* ── Design System Variables ──────────────────────────── */
 :root {
@@ -19,6 +19,7 @@
   --radius-lg: 16px;
   --shadow: 0 1px 3px rgba(0,0,0,0.05);
   --reader-font-size: 18px;
+  --toc-width: 220px;
 }
 
 [data-theme="dark"] {
@@ -79,6 +80,9 @@ body {
   top: 3px;
   z-index: 50;
   box-shadow: var(--shadow);
+  transition: opacity 0.3s, transform 0.3s, height 0.3s;
+  height: auto;
+  overflow: visible;
 }
 
 .topbar-inner {
@@ -168,11 +172,11 @@ body {
 }
 
 /* ── Export Dropdown ──────────────────────────────────── */
-.export-dropdown, .collection-dropdown {
+.export-dropdown, .collection-dropdown, .share-dropdown {
   position: relative;
 }
 
-.export-menu, .collection-menu {
+.export-menu, .collection-menu, .share-menu {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
@@ -201,7 +205,7 @@ body {
   padding: 6px 10px 4px;
 }
 
-.export-option {
+.export-option, .share-option {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -218,7 +222,7 @@ body {
   width: 100%;
 }
 
-.export-option:hover {
+.export-option:hover, .share-option:hover {
   background: var(--bg-hover);
   color: var(--primary);
 }
@@ -258,13 +262,120 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Main Reader ──────────────────────────────────────── */
+/* ── TOC Toggle Button ────────────────────────────────── */
+.toc-toggle-btn {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 41;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  display: none;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.toc-toggle-btn.visible {
+  display: inline-flex;
+}
+
+.toc-toggle-btn:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* ── TOC Sidebar ──────────────────────────────────────── */
+.toc-sidebar {
+  position: fixed;
+  top: 3px;
+  left: 0;
+  width: var(--toc-width);
+  height: calc(100vh - 3px);
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  z-index: 40;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.toc-sidebar.visible {
+  transform: translateX(0);
+}
+
+.toc-sidebar-header {
+  padding: 12px 16px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.toc-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.toc-item {
+  display: block;
+  font-size: 12px;
+  padding: 6px 16px;
+  color: var(--text-muted);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.4;
+}
+
+.toc-item:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.toc-item.active {
+  color: var(--primary);
+  border-left-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.toc-item.toc-h3 {
+  padding-left: 28px;
+  font-size: 11px;
+}
+
+.toc-item.toc-h3.active {
+  padding-left: 28px;
+}
+
+/* ── Content Layout with TOC ──────────────────────────── */
 .reader-main {
   max-width: 960px;
   margin: 0 auto;
   padding: 32px 24px 64px;
+  transition: margin-left 0.25s ease;
 }
 
+.reader-main.toc-visible {
+  margin-left: var(--toc-width);
+}
+
+/* ── Main Reader ──────────────────────────────────────── */
 .reader-article {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -490,6 +601,448 @@ body {
   font-size: 0.9em;
 }
 
+/* ── Highlight Marks ──────────────────────────────────── */
+.cnv-highlight {
+  background-color: #fef08a;
+  padding: 1px 2px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.cnv-highlight:hover {
+  opacity: 0.8;
+}
+
+.cnv-highlight[data-color="yellow"] { background-color: #fef08a; }
+.cnv-highlight[data-color="green"]  { background-color: #bbf7d0; }
+.cnv-highlight[data-color="red"]    { background-color: #fecaca; }
+.cnv-highlight[data-color="blue"]   { background-color: #bfdbfe; }
+
+[data-theme="dark"] .cnv-highlight[data-color="yellow"] { background-color: rgba(254, 240, 138, 0.35); }
+[data-theme="dark"] .cnv-highlight[data-color="green"]  { background-color: rgba(187, 247, 208, 0.3); }
+[data-theme="dark"] .cnv-highlight[data-color="red"]    { background-color: rgba(254, 202, 202, 0.3); }
+[data-theme="dark"] .cnv-highlight[data-color="blue"]   { background-color: rgba(191, 219, 254, 0.3); }
+
+/* Note indicator dot */
+.cnv-highlight-note-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  margin-left: 2px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+/* Highlight flash animation */
+.cnv-highlight-flash {
+  animation: highlightFlash 1s ease;
+}
+
+@keyframes highlightFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Highlight Toolbar (floating) ─────────────────────── */
+.highlight-toolbar {
+  position: fixed;
+  z-index: 200;
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  animation: highlightToolbarIn 0.15s ease;
+  pointer-events: auto;
+}
+
+.highlight-toolbar.hidden {
+  display: none;
+}
+
+@keyframes highlightToolbarIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.highlight-color-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+  outline: none;
+}
+
+.highlight-color-btn:hover {
+  transform: scale(1.15);
+}
+
+.highlight-color-btn.selected {
+  border-color: white;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+}
+
+.highlight-toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255,255,255,0.2);
+  margin: 0 2px;
+}
+
+.highlight-note-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.highlight-note-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: white;
+}
+
+/* ── Highlight Note Popup ─────────────────────────────── */
+.highlight-note-popup {
+  position: fixed;
+  z-index: 210;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  width: 260px;
+  animation: highlightToolbarIn 0.15s ease;
+}
+
+.highlight-note-popup.hidden {
+  display: none;
+}
+
+.highlight-note-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+  min-height: 60px;
+}
+
+.highlight-note-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.1);
+}
+
+.highlight-note-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+/* ── Annotations Panel ────────────────────────────────── */
+.annotations-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100vh;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+  z-index: 45;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.annotations-panel.visible {
+  transform: translateX(0);
+}
+
+.annotations-panel-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.annotations-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.annotations-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.annotations-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.annotations-empty p {
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.annotations-empty .annotations-empty-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* Annotation item */
+.annotation-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.annotation-item:hover {
+  background: var(--bg-hover);
+}
+
+.annotation-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.annotation-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.annotation-date {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.annotation-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  margin-bottom: 4px;
+}
+
+.annotation-note {
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-hover);
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 2px solid var(--primary);
+  line-height: 1.4;
+}
+
+.annotation-delete-btn {
+  margin-left: auto;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.annotation-delete-btn:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ── Pomodoro Widget ─────────────────────────────────── */
+.pomodoro-widget {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+  pointer-events: none;
+}
+
+.pomodoro-widget.hidden {
+  display: none;
+}
+
+.pomodoro-widget-inner {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 36px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+  text-align: center;
+  pointer-events: auto;
+  min-width: 220px;
+}
+
+[data-theme="dark"] .pomodoro-widget-inner {
+  background: rgba(30, 41, 59, 0.9);
+}
+
+.pomodoro-mode-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pomodoro-mode-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.pomodoro-mode-label.work {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.pomodoro-mode-label.break {
+  color: #ea580c;
+  background: rgba(234, 88, 12, 0.1);
+}
+
+.pomodoro-completed {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.pomodoro-completed.hidden {
+  display: none;
+}
+
+.pomodoro-timer {
+  font-size: 48px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+
+.pomodoro-timer.running {
+  animation: pomodoroPulse 2s ease-in-out infinite;
+}
+
+@keyframes pomodoroPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.pomodoro-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* ── Focus Mode ────────────────────────────────────────── */
+.focus-mode .reader-topbar {
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+}
+
+.focus-mode .reader-topbar * {
+  display: none !important;
+}
+
+.focus-mode .source-link-section {
+  display: none !important;
+}
+
+.focus-mode .toc-sidebar {
+  transform: translateX(-100%) !important;
+}
+
+.focus-mode .toc-toggle-btn {
+  display: none !important;
+}
+
+.focus-mode .annotations-panel {
+  transform: translateX(100%) !important;
+}
+
+.focus-mode .pomodoro-widget {
+  z-index: 50;
+}
+
+.focus-mode .reading-progress {
+  opacity: 0.3;
+}
+
+.focus-mode #reader-main.reader-main {
+  max-width: 720px;
+}
+
 /* ── Notes Section ────────────────────────────────────── */
 .notes-section {
   border-top: 1px solid var(--border);
@@ -711,6 +1264,19 @@ body {
   display: none !important;
 }
 
+/* Highlight mode cursor */
+.highlight-mode .article-content {
+  cursor: crosshair;
+}
+
+.highlight-mode .article-content ::selection {
+  background: rgba(254, 240, 138, 0.5);
+}
+
+[data-theme="dark"] .highlight-mode .article-content ::selection {
+  background: rgba(254, 240, 138, 0.3);
+}
+
 /* ── Responsive ───────────────────────────────────────── */
 @media (max-width: 768px) {
   .topbar-inner {
@@ -732,6 +1298,17 @@ body {
 
   .reader-main {
     padding: 16px 12px 48px;
+  }
+
+  /* Mobile: TOC always hidden, no margin shift */
+  .reader-main.toc-visible {
+    margin-left: 0;
+  }
+
+  .toc-sidebar {
+    width: 260px;
+    z-index: 55;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.15);
   }
 
   .article-header {
@@ -762,6 +1339,17 @@ body {
     font-size: 10px;
     min-width: 28px;
   }
+
+  /* Annotations panel: full width on mobile */
+  .annotations-panel {
+    width: 100%;
+  }
+
+  /* Hide some buttons on mobile to avoid overflow */
+  .topbar-actions .share-dropdown,
+  .topbar-actions #annotations-btn {
+    /* visible but no text label */
+  }
 }
 
 @media (max-width: 480px) {
@@ -773,4 +1361,42 @@ body {
     gap: 8px;
     font-size: 12px;
   }
+
+  /* Further simplify topbar on small screens */
+  #highlight-btn,
+  #annotations-btn,
+  #focus-btn {
+    /* Keep icons, hide via span display:none already */
+  }
+
+  .pomodoro-widget-inner {
+    padding: 20px 24px;
+    min-width: 200px;
+  }
+
+  .pomodoro-timer {
+    font-size: 36px;
+  }
+}
+
+/* ── Scrollbar for TOC and Annotations ────────────────── */
+.toc-list::-webkit-scrollbar,
+.annotations-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.toc-list::-webkit-scrollbar-track,
+.annotations-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.toc-list::-webkit-scrollbar-thumb,
+.annotations-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.toc-list::-webkit-scrollbar-thumb:hover,
+.annotations-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

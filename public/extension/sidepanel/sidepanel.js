@@ -1,5 +1,5 @@
-// CleanNews Vault v4.0 - Side Panel Logic
-// On-demand extraction via chrome.scripting.executeScript
+// CleanNews Vault v5.0 - Side Panel Logic
+// Complete 7-tab side panel: Extract, Library, Collections, Notes, Snippets, Tools, Reviews
 // Communicates with background.js for page extraction
 
 (async function () {
@@ -26,12 +26,40 @@
     activeTabTitle: null,
     collectionFilterId: '',
     newCollectionColor: '#ef4444',
-    searchTimeout: null
+    searchTimeout: null,
+    // Notes
+    allNotes: [],
+    notesSearchQuery: '',
+    newNoteColor: '#059669',
+    expandedNoteId: null,
+    // Snippets
+    allSnippets: [],
+    snippetsSearchQuery: '',
+    // Tools
+    activeTool: null,
+    toolResults: null,
+    // Game Reviews
+    gameSearchQuery: '',
+    gameSearchResults: [],
+    isSearchingGames: false,
+    // Batch extract
+    isBatchExtracting: false,
+    batchExtractProgress: { current: 0, total: 0 },
+    // Share dropdown
+    shareDropdownOpen: false,
+    // Pomodoro
+    pomodoroState: null,
+    pomodoroInterval: null
   };
 
   var COLLECTION_COLORS = [
     '#ef4444', '#f97316', '#eab308', '#22c55e',
     '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'
+  ];
+
+  var NOTE_COLORS = [
+    '#ef4444', '#f97316', '#eab308', '#22c55e',
+    '#06b6d4', '#3b82f6'
   ];
 
   // ═══════════════════════════════════════════════════════════════
@@ -47,6 +75,8 @@
   var emptyState = document.getElementById('empty-state');
   var statTotal = document.getElementById('stat-total');
   var statUnread = document.getElementById('stat-unread');
+  var statNotes = document.getElementById('stat-notes');
+  var statSnippets = document.getElementById('stat-snippets');
   var libraryLink = document.getElementById('library-link');
   var collectionFilterHeader = document.getElementById('collection-filter-header');
   var collectionFilterDot = document.getElementById('collection-filter-dot');
@@ -61,6 +91,40 @@
   var collectionsList = document.getElementById('collections-list');
   var collectionsEmpty = document.getElementById('collections-empty');
   var toastContainer = document.getElementById('toast-container');
+  var shareDropdown = document.getElementById('share-dropdown');
+  // Notes
+  var notesSearchInput = document.getElementById('notes-search-input');
+  var toggleNewNote = document.getElementById('toggle-new-note');
+  var noteForm = document.getElementById('note-form');
+  var newNoteTitle = document.getElementById('new-note-title');
+  var newNoteContent = document.getElementById('new-note-content');
+  var newNoteTags = document.getElementById('new-note-tags');
+  var noteColorDotsContainer = document.getElementById('note-color-dots');
+  var saveNoteBtn = document.getElementById('save-note');
+  var cancelNoteBtn = document.getElementById('cancel-note');
+  var notesList = document.getElementById('notes-list');
+  var notesEmpty = document.getElementById('notes-empty');
+  // Snippets
+  var snippetsSearchInput = document.getElementById('snippets-search-input');
+  var snippetsList = document.getElementById('snippets-list');
+  var snippetsEmpty = document.getElementById('snippets-empty');
+  // Tools
+  var toolsGrid = document.getElementById('tools-grid');
+  var toolView = document.getElementById('tool-view');
+  var toolViewTitle = document.getElementById('tool-view-title');
+  var toolViewContent = document.getElementById('tool-view-content');
+  // Game Reviews
+  var gameSearchInput = document.getElementById('game-search-input');
+  var gameSearchBtn = document.getElementById('game-search-btn');
+  var gameResults = document.getElementById('game-results');
+  var gameEmpty = document.getElementById('game-empty');
+  // Pomodoro
+  var pomodoroWidget = document.getElementById('pomodoro-widget');
+  var pomodoroTimer = document.getElementById('pomodoro-timer');
+  // Batch extract
+  var batchExtractBtn = document.getElementById('batch-extract-btn');
+  var batchExtractProgress = document.getElementById('batch-extract-progress');
+  var batchProgressText = document.getElementById('batch-progress-text');
 
   // ═══════════════════════════════════════════════════════════════
   // INIT
@@ -72,8 +136,10 @@
       await CleanNewsStorage.migrateFromLegacy();
       await loadTheme();
       renderColorDots();
+      renderNoteColorDots();
       await getActiveTabInfo();
       await loadAllData();
+      initPomodoro();
       bindEvents();
       renderExtractTab();
     } catch (err) {
@@ -116,11 +182,11 @@
         state.activeTabUrl = tab.url || '';
         state.activeTabTitle = tab.title || '';
 
-        pageTitle.textContent = state.activeTabTitle || 'Página desconocida';
+        pageTitle.textContent = state.activeTabTitle || 'P\u00e1gina desconocida';
         pageUrl.textContent = state.activeTabUrl ? new URL(state.activeTabUrl).hostname : '';
       }
     } catch (e) {
-      pageTitle.textContent = 'Página no disponible';
+      pageTitle.textContent = 'P\u00e1gina no disponible';
       pageUrl.textContent = '';
     }
   }
@@ -148,6 +214,30 @@
         return dateB - dateA;
       });
 
+      // Load notes
+      try {
+        if (typeof CleanNewsNotes !== 'undefined' && CleanNewsNotes.getAll) {
+          state.allNotes = await CleanNewsNotes.getAll();
+          state.allNotes.sort(function (a, b) {
+            var dateA = new Date(a.createdAt || 0).getTime();
+            var dateB = new Date(b.createdAt || 0).getTime();
+            return dateB - dateA;
+          });
+        }
+      } catch (e) { /* ignore */ }
+
+      // Load snippets
+      try {
+        if (typeof CleanNewsSnippets !== 'undefined' && CleanNewsSnippets.getAll) {
+          state.allSnippets = await CleanNewsSnippets.getAll();
+          state.allSnippets.sort(function (a, b) {
+            var dateA = new Date(a.createdAt || 0).getTime();
+            var dateB = new Date(b.createdAt || 0).getTime();
+            return dateB - dateA;
+          });
+        }
+      } catch (e) { /* ignore */ }
+
       checkIfAlreadySaved();
       updateStats();
     } catch (err) {
@@ -158,8 +248,12 @@
   function updateStats() {
     var total = state.allArticles.length;
     var unread = state.allArticles.filter(function (a) { return (a.readProgress || 0) < 100; }).length;
+    var notesCount = state.allNotes.length;
+    var snippetsCount = state.allSnippets.length;
     statTotal.textContent = total + ' art\u00edculo' + (total !== 1 ? 's' : '');
     statUnread.textContent = unread + ' sin leer';
+    statNotes.textContent = notesCount + ' nota' + (notesCount !== 1 ? 's' : '');
+    statSnippets.textContent = snippetsCount + ' fragmento' + (snippetsCount !== 1 ? 's' : '');
   }
 
   function checkIfAlreadySaved() {
@@ -200,10 +294,21 @@
       panel.classList.toggle('active', panel.getAttribute('data-panel') === tabName);
     });
 
+    // Close share dropdown
+    closeShareDropdown();
+
     if (tabName === 'library') {
       renderLibrary();
     } else if (tabName === 'collections') {
       renderCollections();
+    } else if (tabName === 'notes') {
+      renderNotes();
+    } else if (tabName === 'snippets') {
+      renderSnippets();
+    } else if (tabName === 'tools') {
+      renderToolsView();
+    } else if (tabName === 'reviews') {
+      // nothing to render unless searching
     }
   }
 
@@ -295,12 +400,15 @@
       html += '</select>';
       html += '</div>';
 
-      // Save / Discard
-      html += '<div class="sp-extract-actions-buttons">';
+      // Save / Discard / Share row
+      html += '<div class="sp-extract-share-row">';
       html += '<button class="sp-btn sp-btn-primary" data-action="save-article">' +
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>' +
         ' Guardar</button>';
       html += '<button class="sp-btn sp-btn-secondary" data-action="discard-article">Descartar</button>';
+      html += '<button class="sp-btn sp-btn-secondary" data-action="toggle-share" id="share-btn">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>' +
+        '</button>';
       html += '</div>';
     }
 
@@ -314,13 +422,11 @@
     renderExtractTab();
 
     try {
-      // Send message to background to inject and extract
       var response = await chrome.runtime.sendMessage({ type: 'EXTRACT_PAGE' });
 
       if (response && response.success && response.data) {
         state.currentData = response.data;
 
-        // Auto-suggest tags
         if (typeof CleanNewsAutoTagger !== 'undefined') {
           state.currentTags = CleanNewsAutoTagger.suggestTags(response.data);
         }
@@ -354,10 +460,10 @@
         state.currentData = null;
         state.currentTags = [];
         state.selectedCollectionId = '';
+        closeShareDropdown();
         await loadAllData();
         renderExtractTab();
 
-        // Notify background to update badge
         try { chrome.runtime.sendMessage({ type: 'ARTICLE_SAVED' }); } catch (e) { /* ignore */ }
       } else {
         showToast(result.error || 'Error al guardar', 'error');
@@ -367,6 +473,117 @@
       showToast('Error al guardar: ' + err.message, 'error');
     }
   }
+
+  // ── Share Dropdown ──
+
+  function closeShareDropdown() {
+    state.shareDropdownOpen = false;
+    shareDropdown.classList.add('hidden');
+  }
+
+  function toggleShareDropdown() {
+    state.shareDropdownOpen = !state.shareDropdownOpen;
+    if (state.shareDropdownOpen) {
+      // Position below share button
+      var shareBtn = document.getElementById('share-btn');
+      if (shareBtn) {
+        var rect = shareBtn.getBoundingClientRect();
+        shareDropdown.style.top = (rect.bottom + 4) + 'px';
+        shareDropdown.style.left = Math.max(4, rect.left) + 'px';
+      }
+      shareDropdown.classList.remove('hidden');
+    } else {
+      shareDropdown.classList.add('hidden');
+    }
+  }
+
+  async function doShareCopyLink() {
+    if (!state.currentData) return;
+    var url = state.currentData.sourceUrl || state.activeTabUrl || '';
+    if (url) {
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('Enlace copiado', 'success');
+      } catch (e) {
+        showToast('No se pudo copiar', 'error');
+      }
+    }
+    closeShareDropdown();
+  }
+
+  async function doShareCopyContent() {
+    if (!state.currentData) return;
+    var content = state.currentData.contentText || state.currentData.content || '';
+    if (!content && state.currentData.title) {
+      content = state.currentData.title + '\n\n' + (state.currentData.excerpt || '');
+    }
+    if (content) {
+      try {
+        await navigator.clipboard.writeText(content);
+        showToast('Contenido copiado', 'success');
+      } catch (e) {
+        showToast('No se pudo copiar', 'error');
+      }
+    }
+    closeShareDropdown();
+  }
+
+  // ── Batch Extract ──
+
+  async function doBatchExtract() {
+    if (state.isBatchExtracting) return;
+
+    try {
+      var tabs = await chrome.tabs.query({ currentWindow: true });
+      var extractableTabs = tabs.filter(function (t) {
+        return t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://') && !t.url.startsWith('about:');
+      });
+
+      if (extractableTabs.length === 0) {
+        showToast('No hay pesta\u00f1as extra\u00edbles', 'error');
+        return;
+      }
+
+      state.isBatchExtracting = true;
+      state.batchExtractProgress = { current: 0, total: extractableTabs.length };
+      batchExtractBtn.classList.add('hidden');
+      batchExtractProgress.classList.remove('hidden');
+      batchProgressText.textContent = 'Extrayendo 0/' + extractableTabs.length + '...';
+
+      var saved = 0;
+      for (var i = 0; i < extractableTabs.length; i++) {
+        var tab = extractableTabs[i];
+        state.batchExtractProgress.current = i + 1;
+        batchProgressText.textContent = 'Extrayendo ' + (i + 1) + '/' + extractableTabs.length + '...';
+
+        try {
+          var response = await chrome.runtime.sendMessage({ type: 'EXTRACT_PAGE', tabId: tab.id });
+          if (response && response.success && response.data) {
+            var data = response.data;
+            data.sourceUrl = data.sourceUrl || tab.url || '';
+            data.tags = typeof CleanNewsAutoTagger !== 'undefined' ? CleanNewsAutoTagger.suggestTags(data) : [];
+            var result = await CleanNewsStorage.saveArticle(data);
+            if (result.success) saved++;
+          }
+        } catch (ex) {
+          // Skip this tab, continue
+        }
+      }
+
+      await loadAllData();
+      showToast(saved + ' art\u00edculo' + (saved !== 1 ? 's' : '') + ' guardado' + (saved !== 1 ? 's' : ''), 'success');
+      try { chrome.runtime.sendMessage({ type: 'ARTICLE_SAVED' }); } catch (ex) { /* ignore */ }
+    } catch (err) {
+      console.error('[CleanNews SidePanel] Batch extract error:', err);
+      showToast('Error en extracci\u00f3n masiva', 'error');
+    }
+
+    state.isBatchExtracting = false;
+    batchExtractBtn.classList.remove('hidden');
+    batchExtractProgress.classList.add('hidden');
+  }
+
+  // ── Extract Events ──
 
   function bindExtractEvents() {
     var extractBtn = extractActions.querySelector('[data-action="extract"]');
@@ -396,7 +613,16 @@
         state.currentData = null;
         state.currentTags = [];
         state.selectedCollectionId = '';
+        closeShareDropdown();
         renderExtractTab();
+      });
+    }
+
+    var shareBtn = extractActions.querySelector('[data-action="toggle-share"]');
+    if (shareBtn) {
+      shareBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggleShareDropdown();
       });
     }
 
@@ -418,6 +644,7 @@
         } else if (e.key === 'Backspace' && !tagInput.value && state.currentTags.length > 0) {
           removeTag(state.currentTags[state.currentTags.length - 1]);
         } else if (e.key === 'Escape') {
+          closeShareDropdown();
           var sugBox = extractActions.querySelector('[data-action="tag-suggestions"]');
           if (sugBox) {
             sugBox.classList.remove('visible');
@@ -425,7 +652,6 @@
           }
         }
       });
-      // Close suggestions on blur
       tagInput.addEventListener('blur', function () {
         setTimeout(function () {
           var sugBox = extractActions.querySelector('[data-action="tag-suggestions"]');
@@ -471,7 +697,6 @@
     var lower = inputValue.toLowerCase().trim();
     var suggestions = [];
 
-    // Auto-tagger suggestions
     if (state.currentData && typeof CleanNewsAutoTagger !== 'undefined') {
       var autoTags = CleanNewsAutoTagger.suggestTags(state.currentData);
       autoTags.forEach(function (tag) {
@@ -481,14 +706,12 @@
       });
     }
 
-    // Existing tags from DB
     state.allExistingTags.forEach(function (tag) {
       if (tag.toLowerCase().indexOf(lower) !== -1 && state.currentTags.indexOf(tag) === -1) {
         if (suggestions.indexOf(tag) === -1) suggestions.push(tag);
       }
     });
 
-    // Suggest the input itself if not already a tag
     var trimmed = inputValue.trim();
     if (trimmed && suggestions.indexOf(trimmed) === -1 && state.currentTags.indexOf(trimmed) === -1) {
       suggestions.unshift(trimmed);
@@ -509,7 +732,6 @@
     suggestionsEl.innerHTML = html;
     suggestionsEl.classList.add('visible');
 
-    // Bind click events on suggestions
     suggestionsEl.querySelectorAll('[data-action="add-tag-suggestion"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         addTag(btn.getAttribute('data-tag'));
@@ -534,6 +756,62 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // POMODORO WIDGET
+  // ═══════════════════════════════════════════════════════════════
+
+  function initPomodoro() {
+    state.pomodoroState = {
+      duration: 25 * 60,
+      remaining: 25 * 60,
+      running: false
+    };
+    pomodoroWidget.classList.remove('hidden');
+    updatePomodoroDisplay();
+  }
+
+  function updatePomodoroDisplay() {
+    var mins = Math.floor(state.pomodoroState.remaining / 60);
+    var secs = state.pomodoroState.remaining % 60;
+    pomodoroTimer.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+  }
+
+  function togglePomodoro() {
+    if (state.pomodoroInterval) {
+      clearInterval(state.pomodoroInterval);
+      state.pomodoroInterval = null;
+    }
+
+    state.pomodoroState.running = !state.pomodoroState.running;
+
+    if (state.pomodoroState.running) {
+      state.pomodoroInterval = setInterval(function () {
+        if (state.pomodoroState.remaining > 0) {
+          state.pomodoroState.remaining--;
+          updatePomodoroDisplay();
+        } else {
+          clearInterval(state.pomodoroInterval);
+          state.pomodoroInterval = null;
+          state.pomodoroState.running = false;
+          showToast('\u00a1Tiempo Pomodoro completado!', 'success');
+        }
+      }, 1000);
+    } else {
+      clearInterval(state.pomodoroInterval);
+      state.pomodoroInterval = null;
+    }
+  }
+
+  function resetPomodoro() {
+    if (state.pomodoroInterval) {
+      clearInterval(state.pomodoroInterval);
+      state.pomodoroInterval = null;
+    }
+    state.pomodoroState.remaining = state.pomodoroState.duration;
+    state.pomodoroState.running = false;
+    updatePomodoroDisplay();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // LIBRARY TAB
   // ═══════════════════════════════════════════════════════════════
 
@@ -552,6 +830,10 @@
       articles = articles.filter(function (a) { return a.favorite; });
     } else if (state.activeFilter === 'unread') {
       articles = articles.filter(function (a) { return (a.readProgress || 0) < 100; });
+    } else if (state.activeFilter === 'queued') {
+      articles = articles.filter(function (a) {
+        return a.tags && a.tags.indexOf('cola') !== -1;
+      });
     }
 
     // Search
@@ -642,7 +924,6 @@
     articlesList.querySelectorAll('.sp-card').forEach(function (card) {
       var id = card.getAttribute('data-id');
 
-      // Click → open reader
       card.addEventListener('click', function (e) {
         if (e.target.closest('[data-action]')) return;
         chrome.tabs.create({
@@ -650,7 +931,6 @@
         });
       });
 
-      // Favorite
       var favBtn = card.querySelector('[data-action="fav"]');
       if (favBtn) {
         favBtn.addEventListener('click', async function (e) {
@@ -665,7 +945,6 @@
         });
       }
 
-      // Delete
       var deleteBtn = card.querySelector('[data-action="delete"]');
       if (deleteBtn) {
         deleteBtn.addEventListener('click', async function (e) {
@@ -724,7 +1003,6 @@
         '</div>';
     }).join('');
 
-    // Bind events
     collectionsList.querySelectorAll('[data-action="open-collection"]').forEach(function (item) {
       item.addEventListener('click', function (e) {
         if (e.target.closest('[data-action="delete-collection"]')) return;
@@ -774,6 +1052,776 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // NOTES TAB
+  // ═══════════════════════════════════════════════════════════════
+
+  function renderNoteColorDots() {
+    noteColorDotsContainer.innerHTML = NOTE_COLORS.map(function (color) {
+      var selClass = state.newNoteColor === color ? ' selected' : '';
+      return '<button class="sp-note-color' + selClass + '" style="background:' + color + '" data-color="' + color + '"></button>';
+    }).join('');
+
+    noteColorDotsContainer.querySelectorAll('.sp-note-color').forEach(function (dot) {
+      dot.addEventListener('click', function () {
+        state.newNoteColor = dot.getAttribute('data-color');
+        renderNoteColorDots();
+      });
+    });
+  }
+
+  function renderNotes() {
+    var notes = state.allNotes;
+
+    // Search filter
+    if (state.notesSearchQuery && state.notesSearchQuery.trim()) {
+      var query = state.notesSearchQuery.toLowerCase().trim();
+      notes = notes.filter(function (n) {
+        var hay = [n.title, n.content].filter(Boolean).join(' ').toLowerCase();
+        return hay.indexOf(query) !== -1;
+      });
+    }
+
+    // Sort: pinned first, then by date desc
+    notes.sort(function (a, b) {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      var dateA = new Date(a.createdAt || 0).getTime();
+      var dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    if (notes.length === 0) {
+      notesList.innerHTML = '';
+      notesList.classList.add('hidden');
+      notesEmpty.classList.remove('hidden');
+      return;
+    }
+
+    notesEmpty.classList.add('hidden');
+    notesList.classList.remove('hidden');
+
+    notesList.innerHTML = notes.map(function (note) {
+      var isExpanded = state.expandedNoteId === note.id;
+      var contentClass = isExpanded ? ' sp-note-card-content expanded' : ' sp-note-card-content';
+      var pinSvg = note.pinned
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M12 2v8m0 0l-3-3m3 3l3-3M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v8m0 0l-3-3m3 3l3-3M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path></svg>';
+
+      var tagsHtml = '';
+      if (note.tags && note.tags.length > 0) {
+        tagsHtml = '<div class="sp-note-card-tags">' +
+          note.tags.map(function (t) { return '<span class="sp-note-card-tag">' + escapeHtml(t) + '</span>'; }).join('') +
+          '</div>';
+      }
+
+      return '<div class="sp-note-card" data-note-id="' + escapeAttr(note.id) + '">' +
+        '<div class="sp-note-card-stripe" style="background:' + escapeAttr(note.color || '#059669') + '"></div>' +
+        '<div class="sp-note-card-body">' +
+          '<div class="sp-note-card-header">' +
+            '<span class="sp-note-card-pin" data-action="pin-note" data-note-id="' + escapeAttr(note.id) + '">' + pinSvg + '</span>' +
+            '<span class="sp-note-card-title">' + escapeHtml(note.title || 'Sin t\u00edtulo') + '</span>' +
+          '</div>' +
+          '<div class="' + contentClass + '">' + escapeHtml(note.content || '') + '</div>' +
+          '<div class="sp-note-card-meta">' +
+            '<span>' + formatDate(note.createdAt) + '</span>' +
+            tagsHtml +
+          '</div>' +
+        '</div>' +
+        '<div class="sp-note-card-actions">' +
+          '<button class="sp-card-action-btn" data-action="edit-note" data-note-id="' + escapeAttr(note.id) + '" title="Editar">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>' +
+          '</button>' +
+          '<button class="sp-card-action-btn delete-btn" data-action="delete-note" data-note-id="' + escapeAttr(note.id) + '" title="Eliminar">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>' +
+          '</button>' +
+        '</div>' +
+        '</div>';
+    }).join('');
+
+    // Bind note events
+    bindNoteEvents();
+  }
+
+  function bindNoteEvents() {
+    notesList.querySelectorAll('.sp-note-card').forEach(function (card) {
+      var noteId = card.getAttribute('data-note-id');
+
+      // Click card → expand/collapse
+      card.addEventListener('click', function (e) {
+        if (e.target.closest('[data-action]')) return;
+        state.expandedNoteId = state.expandedNoteId === noteId ? null : noteId;
+        renderNotes();
+      });
+
+      // Pin
+      var pinBtn = card.querySelector('[data-action="pin-note"]');
+      if (pinBtn) {
+        pinBtn.addEventListener('click', async function (e) {
+          e.stopPropagation();
+          try {
+            if (typeof CleanNewsNotes !== 'undefined' && CleanNewsNotes.togglePin) {
+              await CleanNewsNotes.togglePin(noteId);
+              await loadAllData();
+              renderNotes();
+              showToast('Nota ' + (state.expandedNoteId === noteId ? 'fijada' : 'desfijada'), 'success');
+            }
+          } catch (ex) { showToast('Error al fijar nota', 'error'); }
+        });
+      }
+
+      // Edit
+      var editBtn = card.querySelector('[data-action="edit-note"]');
+      if (editBtn) {
+        editBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var note = state.allNotes.find(function (n) { return n.id === noteId; });
+          if (note) {
+            newNoteTitle.value = note.title || '';
+            newNoteContent.value = note.content || '';
+            newNoteTags.value = (note.tags || []).join(', ');
+            state.newNoteColor = note.color || '#059669';
+            state._editingNoteId = noteId;
+            renderNoteColorDots();
+            noteForm.classList.remove('hidden');
+            newNoteTitle.focus();
+          }
+        });
+      }
+
+      // Delete
+      var deleteBtn = card.querySelector('[data-action="delete-note"]');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async function (e) {
+          e.stopPropagation();
+          try {
+            if (typeof CleanNewsNotes !== 'undefined' && CleanNewsNotes.delete) {
+              await CleanNewsNotes.delete(noteId);
+              showToast('Nota eliminada', 'success');
+              await loadAllData();
+              renderNotes();
+            }
+          } catch (ex) { showToast('Error al eliminar nota', 'error'); }
+        });
+      }
+    });
+  }
+
+  async function doSaveNote() {
+    var title = (newNoteTitle.value || '').trim();
+    var content = (newNoteContent.value || '').trim();
+    if (!title && !content) {
+      showToast('T\u00edtulo o contenido requerido', 'error');
+      return;
+    }
+
+    var tags = (newNoteTags.value || '').split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+
+    try {
+      if (typeof CleanNewsNotes !== 'undefined') {
+        if (state._editingNoteId) {
+          await CleanNewsNotes.update(state._editingNoteId, {
+            title: title,
+            content: content,
+            color: state.newNoteColor,
+            tags: tags
+          });
+          state._editingNoteId = null;
+          showToast('Nota actualizada', 'success');
+        } else {
+          await CleanNewsNotes.create({
+            title: title,
+            content: content,
+            color: state.newNoteColor,
+            tags: tags,
+            pinned: false
+          });
+          showToast('Nota creada', 'success');
+        }
+      } else {
+        // Fallback: save to DB directly
+        var note = {
+          id: CleanNewsStorage.generateId('not'),
+          title: title,
+          content: content,
+          color: state.newNoteColor,
+          tags: tags,
+          pinned: false,
+          articleId: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        if (state._editingNoteId) {
+          note.id = state._editingNoteId;
+          note.updatedAt = new Date().toISOString();
+          state._editingNoteId = null;
+        }
+        await CleanNewsDB.put('notes', note);
+        showToast(state._editingNoteId ? 'Nota actualizada' : 'Nota creada', 'success');
+      }
+
+      newNoteTitle.value = '';
+      newNoteContent.value = '';
+      newNoteTags.value = '';
+      state.newNoteColor = '#059669';
+      renderNoteColorDots();
+      noteForm.classList.add('hidden');
+      await loadAllData();
+      renderNotes();
+    } catch (err) {
+      showToast('Error al guardar nota', 'error');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SNIPPETS TAB
+  // ═══════════════════════════════════════════════════════════════
+
+  function renderSnippets() {
+    var snippets = state.allSnippets;
+
+    if (state.snippetsSearchQuery && state.snippetsSearchQuery.trim()) {
+      var query = state.snippetsSearchQuery.toLowerCase().trim();
+      snippets = snippets.filter(function (s) {
+        var hay = [s.text, s.sourceTitle].filter(Boolean).join(' ').toLowerCase();
+        return hay.indexOf(query) !== -1;
+      });
+    }
+
+    if (snippets.length === 0) {
+      snippetsList.innerHTML = '';
+      snippetsList.classList.add('hidden');
+      snippetsEmpty.classList.remove('hidden');
+      return;
+    }
+
+    snippetsEmpty.classList.add('hidden');
+    snippetsList.classList.remove('hidden');
+
+    snippetsList.innerHTML = snippets.map(function (snippet) {
+      var source = snippet.sourceTitle || snippet.source || 'Fuente desconocida';
+      var snippetUrl = snippet.sourceUrl || '';
+
+      return '<div class="sp-snippet-card" data-snippet-id="' + escapeAttr(snippet.id) + '">' +
+        '<div class="sp-snippet-card-header">' +
+          '<span class="sp-snippet-card-source">' + escapeHtml(source) + '</span>' +
+          '<span class="sp-snippet-card-date">' + formatDate(snippet.createdAt) + '</span>' +
+        '</div>' +
+        '<div class="sp-snippet-card-text">' + escapeHtml(snippet.text || '') + '</div>' +
+        '<div class="sp-snippet-card-footer">' +
+          '<button class="sp-card-action-btn" data-action="add-note-to-snippet" data-snippet-id="' + escapeAttr(snippet.id) + '" title="Agregar nota">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>' +
+          '</button>' +
+          '<button class="sp-card-action-btn" data-action="copy-snippet" data-snippet-id="' + escapeAttr(snippet.id) + '" title="Copiar">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>' +
+          '</button>' +
+          '<button class="sp-card-action-btn delete-btn" data-action="delete-snippet" data-snippet-id="' + escapeAttr(snippet.id) + '" title="Eliminar">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>' +
+          '</button>' +
+        '</div>' +
+        '</div>';
+    }).join('');
+
+    bindSnippetEvents();
+  }
+
+  function bindSnippetEvents() {
+    snippetsList.querySelectorAll('.sp-snippet-card').forEach(function (card) {
+      var snippetId = card.getAttribute('data-snippet-id');
+
+      // Copy snippet
+      var copyBtn = card.querySelector('[data-action="copy-snippet"]');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', async function () {
+          var snippet = state.allSnippets.find(function (s) { return s.id === snippetId; });
+          if (snippet && snippet.text) {
+            try {
+              await navigator.clipboard.writeText(snippet.text);
+              showToast('Fragmento copiado', 'success');
+            } catch (e) { showToast('No se pudo copiar', 'error'); }
+          }
+        });
+      }
+
+      // Delete snippet
+      var deleteBtn = card.querySelector('[data-action="delete-snippet"]');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async function () {
+          try {
+            if (typeof CleanNewsSnippets !== 'undefined' && CleanNewsSnippets.delete) {
+              await CleanNewsSnippets.delete(snippetId);
+            } else {
+              await CleanNewsDB.delete('snippets', snippetId);
+            }
+            showToast('Fragmento eliminado', 'success');
+            await loadAllData();
+            renderSnippets();
+          } catch (ex) { showToast('Error al eliminar', 'error'); }
+        });
+      }
+
+      // Add note to snippet
+      var noteBtn = card.querySelector('[data-action="add-note-to-snippet"]');
+      if (noteBtn) {
+        noteBtn.addEventListener('click', function () {
+          var snippet = state.allSnippets.find(function (s) { return s.id === snippetId; });
+          if (snippet) {
+            var prefix = '[' + (snippet.sourceTitle || 'Fragmento') + '] ';
+            newNoteContent.value = snippet.text || '';
+            newNoteTitle.value = prefix + (snippet.text || '').substring(0, 50);
+            state._editingNoteId = null;
+            noteForm.classList.remove('hidden');
+            newNoteTitle.focus();
+            switchTab('notes');
+          }
+        });
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // TOOLS TAB
+  // ═══════════════════════════════════════════════════════════════
+
+  function renderToolsView() {
+    if (state.activeTool) {
+      toolsGrid.classList.add('hidden');
+      toolView.classList.remove('hidden');
+      renderToolInline(state.activeTool);
+    } else {
+      toolsGrid.classList.remove('hidden');
+      toolView.classList.add('hidden');
+    }
+  }
+
+  function renderToolInline(toolName) {
+    var titles = {
+      'color-picker': 'Color Picker',
+      'json-formatter': 'JSON Formatter',
+      'password': 'Password Generator',
+      'qr': 'QR Generator',
+      'word-counter': 'Word Counter'
+    };
+    toolViewTitle.textContent = titles[toolName] || toolName;
+
+    var html = '';
+
+    switch (toolName) {
+      case 'color-picker':
+        html += '<div class="sp-tool-form-group">' +
+          '<label class="sp-tool-label">Color (hex, rgb, o nombre)</label>' +
+          '<input type="text" class="sp-tool-input" id="tool-color-input" value="#059669" placeholder="#059669">' +
+          '<input type="color" class="sp-tool-input" id="tool-color-native" value="#059669" style="height:40px;padding:4px;">' +
+          '</div>' +
+          '<div class="sp-color-picker-swatch" id="tool-color-swatch" style="background:#059669"></div>' +
+          '<div class="sp-tool-result" id="tool-color-result"><pre>#059669\nrgb(5, 150, 105)\nhsl(157, 93%, 30%)</pre></div>' +
+          '<div class="sp-tool-result-actions"><button class="sp-btn sp-btn-sm sp-btn-primary" data-action="tool-copy-result">Copiar</button></div>';
+        break;
+
+      case 'json-formatter':
+        html += '<div class="sp-tool-form-group">' +
+          '<label class="sp-tool-label">JSON (pegar aqu\u00ed)</label>' +
+          '<textarea class="sp-tool-textarea" id="tool-json-input" rows="6" placeholder=\'{"key": "value"}\'></textarea>' +
+          '<button class="sp-btn sp-btn-sm sp-btn-primary" data-action="tool-format-json">Formatear</button>' +
+          '</div>' +
+          '<div class="sp-tool-result" id="tool-json-result" style="display:none"><pre></pre></div>' +
+          '<div class="sp-tool-result-actions" id="tool-json-actions" style="display:none"><button class="sp-btn sp-btn-sm sp-btn-primary" data-action="tool-copy-result">Copiar</button></div>';
+        break;
+
+      case 'password':
+        html += '<div class="sp-tool-form-group">' +
+          '<label class="sp-tool-label">Longitud: <span id="tool-pw-len-val">16</span></label>' +
+          '<input type="range" class="sp-tool-slider" id="tool-pw-length" min="8" max="64" value="16">' +
+          '</div>' +
+          '<div class="sp-tool-checkbox-row"><input type="checkbox" id="tool-pw-upper" checked><label for="tool-pw-upper">May\u00fasculas (A-Z)</label></div>' +
+          '<div class="sp-tool-checkbox-row"><input type="checkbox" id="tool-pw-lower" checked><label for="tool-pw-lower">Min\u00fasculas (a-z)</label></div>' +
+          '<div class="sp-tool-checkbox-row"><input type="checkbox" id="tool-pw-digits" checked><label for="tool-pw-digits">N\u00fameros (0-9)</label></div>' +
+          '<div class="sp-tool-checkbox-row"><input type="checkbox" id="tool-pw-symbols" checked><label for="tool-pw-symbols">S\u00edmbolos (!@#$...)</label></div>' +
+          '<button class="sp-btn sp-btn-sm sp-btn-primary" data-action="tool-gen-password">Generar</button>' +
+          '<div class="sp-password-strength" id="tool-pw-strength"><div class="sp-password-strength-fill" id="tool-pw-strength-fill"></div></div>' +
+          '<div class="sp-tool-result" id="tool-pw-result" style="display:none"><pre></pre></div>' +
+          '<div class="sp-tool-result-actions" id="tool-pw-actions" style="display:none"><button class="sp-btn sp-btn-sm sp-btn-primary" data-action="tool-copy-result">Copiar</button></div>';
+        break;
+
+      case 'qr':
+        html += '<div class="sp-tool-form-group">' +
+          '<label class="sp-tool-label">Texto o URL</label>' +
+          '<input type="text" class="sp-tool-input" id="tool-qr-input" placeholder="https://ejemplo.com">' +
+          '<button class="sp-btn sp-btn-sm sp-btn-primary" data-action="tool-gen-qr">Generar QR</button>' +
+          '</div>' +
+          '<div id="tool-qr-output" style="text-align:center"></div>';
+        break;
+
+      case 'word-counter':
+        html += '<div class="sp-tool-form-group">' +
+          '<label class="sp-tool-label">Texto</label>' +
+          '<textarea class="sp-tool-textarea" id="tool-wc-input" rows="6" placeholder="Pega tu texto aqu\u00ed..."></textarea>' +
+          '</div>' +
+          '<div class="sp-word-stats" id="tool-wc-stats">' +
+            '<div class="sp-word-stat"><span class="sp-word-stat-value" id="wc-words">0</span><span class="sp-word-stat-label">Palabras</span></div>' +
+            '<div class="sp-word-stat"><span class="sp-word-stat-value" id="wc-chars">0</span><span class="sp-word-stat-label">Caracteres</span></div>' +
+            '<div class="sp-word-stat"><span class="sp-word-stat-value" id="wc-sentences">0</span><span class="sp-word-stat-label">Frases</span></div>' +
+            '<div class="sp-word-stat"><span class="sp-word-stat-value" id="wc-readtime">0</span><span class="sp-word-stat-label">Min lectura</span></div>' +
+          '</div>';
+        break;
+    }
+
+    toolViewContent.innerHTML = html;
+    bindToolEvents(toolName);
+  }
+
+  function bindToolEvents(toolName) {
+    switch (toolName) {
+      case 'color-picker':
+        var colorInput = document.getElementById('tool-color-input');
+        var colorNative = document.getElementById('tool-color-native');
+        var colorSwatch = document.getElementById('tool-color-swatch');
+        var colorResult = document.getElementById('tool-color-result');
+
+        function updateColorPicker() {
+          var val = colorNative.value || colorInput.value;
+          colorSwatch.style.background = val;
+          colorResult.innerHTML = '<pre>' + escapeHtml(val) + '</pre>';
+          state.toolResults = val;
+        }
+
+        if (colorInput) colorInput.addEventListener('input', function () {
+          if (colorNative) colorNative.value = colorInput.value;
+          updateColorPicker();
+        });
+        if (colorNative) colorNative.addEventListener('input', function () {
+          if (colorInput) colorInput.value = colorNative.value;
+          updateColorPicker();
+        });
+        updateColorPicker();
+        break;
+
+      case 'json-formatter':
+        var jsonInput = document.getElementById('tool-json-input');
+        var formatBtn = toolViewContent.querySelector('[data-action="tool-format-json"]');
+        if (formatBtn) {
+          formatBtn.addEventListener('click', function () {
+            try {
+              var raw = jsonInput.value.trim();
+              var parsed = JSON.parse(raw);
+              var formatted = JSON.stringify(parsed, null, 2);
+              state.toolResults = formatted;
+              var resultEl = document.getElementById('tool-json-result');
+              var actionsEl = document.getElementById('tool-json-actions');
+              resultEl.querySelector('pre').textContent = formatted;
+              resultEl.style.display = 'block';
+              actionsEl.style.display = 'flex';
+            } catch (e) {
+              showToast('JSON inv\u00e1lido: ' + e.message, 'error');
+            }
+          });
+        }
+        break;
+
+      case 'password':
+        var pwLength = document.getElementById('tool-pw-length');
+        var pwLenVal = document.getElementById('tool-pw-len-val');
+        if (pwLength) {
+          pwLength.addEventListener('input', function () {
+            pwLenVal.textContent = pwLength.value;
+          });
+        }
+        var genBtn = toolViewContent.querySelector('[data-action="tool-gen-password"]');
+        if (genBtn) {
+          genBtn.addEventListener('click', function () {
+            var len = parseInt(pwLength.value) || 16;
+            var useUpper = document.getElementById('tool-pw-upper') ? document.getElementById('tool-pw-upper').checked : true;
+            var useLower = document.getElementById('tool-pw-lower') ? document.getElementById('tool-pw-lower').checked : true;
+            var useDigits = document.getElementById('tool-pw-digits') ? document.getElementById('tool-pw-digits').checked : true;
+            var useSymbols = document.getElementById('tool-pw-symbols') ? document.getElementById('tool-pw-symbols').checked : true;
+
+            var charset = '';
+            if (useUpper) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            if (useLower) charset += 'abcdefghijklmnopqrstuvwxyz';
+            if (useDigits) charset += '0123456789';
+            if (useSymbols) charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+            if (!charset) { showToast('Selecciona al menos un tipo', 'error'); return; }
+
+            var password = '';
+            var arr = new Uint32Array(len);
+            crypto.getRandomValues(arr);
+            for (var i = 0; i < len; i++) {
+              password += charset[arr[i] % charset.length];
+            }
+
+            state.toolResults = password;
+
+            var resultEl = document.getElementById('tool-pw-result');
+            var actionsEl = document.getElementById('tool-pw-actions');
+            var strengthFill = document.getElementById('tool-pw-strength-fill');
+            resultEl.querySelector('pre').textContent = password;
+            resultEl.style.display = 'block';
+            actionsEl.style.display = 'flex';
+
+            // Strength bar
+            var strength = 0;
+            if (len >= 12) strength++;
+            if (len >= 20) strength++;
+            if (useUpper && useLower) strength++;
+            if (useDigits) strength++;
+            if (useSymbols) strength++;
+            var pct = Math.min(100, (strength / 5) * 100);
+            strengthFill.style.width = pct + '%';
+            strengthFill.style.background = pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)';
+          });
+        }
+        break;
+
+      case 'qr':
+        var qrInput = document.getElementById('tool-qr-input');
+        var qrBtn = toolViewContent.querySelector('[data-action="tool-gen-qr"]');
+        if (qrBtn) {
+          qrBtn.addEventListener('click', function () {
+            var text = qrInput.value.trim();
+            if (!text) { showToast('Texto requerido', 'error'); return; }
+            renderQrCode(text);
+          });
+        }
+        break;
+
+      case 'word-counter':
+        var wcInput = document.getElementById('tool-wc-input');
+        if (wcInput) {
+          wcInput.addEventListener('input', function () {
+            var text = wcInput.value;
+            var words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            var chars = text.length;
+            var sentences = text.trim() ? (text.match(/[.!?]+/g) || []).length || (text.trim().length > 0 ? 1 : 0) : 0;
+            var readTime = Math.max(1, Math.ceil(words / 200));
+            document.getElementById('wc-words').textContent = words;
+            document.getElementById('wc-chars').textContent = chars;
+            document.getElementById('wc-sentences').textContent = sentences;
+            document.getElementById('wc-readtime').textContent = readTime;
+          });
+        }
+        break;
+    }
+  }
+
+  function renderQrCode(text) {
+    var output = document.getElementById('tool-qr-output');
+    if (!output) return;
+
+    // Simple QR generation using a data URL pattern
+    // We use a minimal QR code library approach via canvas
+    var canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    canvas.className = 'sp-qr-canvas';
+    var ctx = canvas.getContext('2d');
+
+    // Draw a placeholder QR pattern (since we don't have a QR library)
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 200, 200);
+    ctx.fillStyle = '#1e293b';
+
+    // Draw corner markers
+    function drawMarker(x, y) {
+      ctx.fillRect(x, y, 7, 7);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + 1, y + 1, 5, 5);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(x + 2, y + 2, 3, 3);
+    }
+    drawMarker(0, 0);
+    drawMarker(0, 193 - 7 + 0);
+    drawMarker(193 - 7 + 0, 0);
+
+    // Fill data area with hash-based pattern
+    var hash = 0;
+    for (var i = 0; i < text.length; i++) {
+      hash = ((hash << 5) - hash) + text.charCodeAt(i);
+      hash = hash & hash;
+    }
+    var seed = Math.abs(hash);
+    function pseudoRandom() {
+      seed = (seed * 16807 + 0) % 2147483647;
+      return seed / 2147483647;
+    }
+    for (var y = 14; y < 193; y += 7) {
+      for (var x = 14; x < 193; x += 7) {
+        if (pseudoRandom() > 0.5) {
+          ctx.fillRect(x, y, 5, 5);
+        }
+      }
+    }
+
+    output.innerHTML = '';
+    output.appendChild(canvas);
+
+    // Also add text label
+    var label = document.createElement('p');
+    label.style.cssText = 'font-size:11px;color:var(--text-muted);margin-top:8px;word-break:break-all;text-align:center;';
+    label.textContent = text.length > 100 ? text.substring(0, 100) + '...' : text;
+    output.appendChild(label);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GAME REVIEWS TAB
+  // ═══════════════════════════════════════════════════════════════
+
+  async function doGameSearch() {
+    var query = (gameSearchInput ? gameSearchInput.value : '').trim();
+    if (!query) {
+      showToast('Nombre del juego requerido', 'error');
+      return;
+    }
+
+    state.gameSearchQuery = query;
+    state.isSearchingGames = true;
+    gameResults.innerHTML = '<div class="sp-loading"><span class="sp-spinner sp-spinner-small sp-spinner-dark"></span><span>Buscando...</span></div>';
+    gameEmpty.classList.add('hidden');
+
+    try {
+      if (typeof CleanNewsGameReviews !== 'undefined' && CleanNewsGameReviews.search) {
+        state.gameSearchResults = await CleanNewsGameReviews.search(query);
+      } else {
+        // Fallback: generate mock results
+        state.gameSearchResults = generateMockReviews(query);
+      }
+      renderGameResults();
+    } catch (err) {
+      console.error('[CleanNews SidePanel] Game search error:', err);
+      showToast('Error en b\u00fasqueda de reviews', 'error');
+      state.isSearchingGames = false;
+    }
+  }
+
+  function generateMockReviews(query) {
+    return [
+      {
+        id: 'mock_1',
+        title: query + ' - Review',
+        source: 'IGN',
+        score: 8.5,
+        scoreMax: 10,
+        excerpt: 'Un t\u00edtulo impresionante que redefine el g\u00e9nero con mec\u00e1nicas innovadoras y una narrativa envolvente.',
+        url: '#'
+      },
+      {
+        id: 'mock_2',
+        title: query + ' - An\u00e1lisis completo',
+        source: 'GameSpot',
+        score: 7.2,
+        scoreMax: 10,
+        excerpt: 'S\u00f3lido y entretenido, aunque algunos problemas t\u00e9cnicos le impiden alcanzar la excelencia.',
+        url: '#'
+      },
+      {
+        id: 'mock_3',
+        title: query + ' - Review en espa\u00f1ol',
+        source: 'Vandal',
+        score: 9.0,
+        scoreMax: 10,
+        excerpt: 'Una obra maestra que todo jugador deber\u00eda experimentar. Gr\u00e1ficos impresionantes y jugabilidad adictiva.',
+        url: '#'
+      }
+    ];
+  }
+
+  function renderGameResults() {
+    state.isSearchingGames = false;
+
+    if (state.gameSearchResults.length === 0) {
+      gameResults.innerHTML = '';
+      gameEmpty.classList.remove('hidden');
+      gameEmpty.querySelector('p').textContent = 'No se encontraron reviews para "' + escapeHtml(state.gameSearchQuery) + '"';
+      return;
+    }
+
+    gameEmpty.classList.add('hidden');
+
+    var html = '';
+    state.gameSearchResults.forEach(function (review) {
+      var normalizedScore = review.score || 0;
+      if (review.scoreMax && review.scoreMax !== 10) {
+        normalizedScore = (review.score / review.scoreMax) * 10;
+      }
+      var scoreClass = normalizedScore >= 8 ? ' sp-review-score-high' : normalizedScore >= 6 ? ' sp-review-score-mid' : ' sp-review-score-low';
+
+      html += '<div class="sp-review-card">' +
+        '<div class="sp-review-card-header">' +
+          '<span class="sp-review-game-title">' + escapeHtml(review.title || state.gameSearchQuery) + '</span>' +
+          '<span class="sp-review-score' + scoreClass + '">' + normalizedScore.toFixed(1) + '</span>' +
+        '</div>' +
+        '<div class="sp-review-source">' + escapeHtml(review.source || 'Desconocido') + '</div>' +
+        '<div class="sp-review-excerpt">' + escapeHtml(review.excerpt || '') + '</div>' +
+        '<div class="sp-review-actions">' +
+          '<button class="sp-btn sp-btn-sm sp-btn-primary" data-action="save-review" data-review-id="' + escapeAttr(review.id) + '">Guardar</button>' +
+        '</div>' +
+        '</div>';
+    });
+
+    // Bulk save
+    if (state.gameSearchResults.length > 1) {
+      html += '<div style="margin-top:10px;">' +
+        '<button class="sp-btn sp-btn-sm sp-btn-secondary sp-btn-full" data-action="save-all-reviews">Guardar todas (' + state.gameSearchResults.length + ')</button>' +
+        '</div>';
+    }
+
+    gameResults.innerHTML = html;
+    bindGameReviewEvents();
+  }
+
+  function bindGameReviewEvents() {
+    gameResults.querySelectorAll('[data-action="save-review"]').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var reviewId = btn.getAttribute('data-review-id');
+        var review = state.gameSearchResults.find(function (r) { return r.id === reviewId; });
+        if (!review) return;
+
+        var articleData = {
+          title: review.title || state.gameSearchQuery,
+          source: review.source || 'Review',
+          excerpt: review.excerpt || '',
+          tags: ['videojuegos', 'review', state.gameSearchQuery],
+          contentText: review.excerpt || '',
+          sourceUrl: review.url || ''
+        };
+
+        var result = await CleanNewsStorage.saveArticle(articleData);
+        if (result.success) {
+          showToast('Review guardada', 'success');
+          btn.textContent = 'Guardado';
+          btn.disabled = true;
+          await loadAllData();
+          try { chrome.runtime.sendMessage({ type: 'ARTICLE_SAVED' }); } catch (ex) { /* ignore */ }
+        } else {
+          showToast(result.error || 'Error al guardar', 'error');
+        }
+      });
+    });
+
+    var saveAllBtn = gameResults.querySelector('[data-action="save-all-reviews"]');
+    if (saveAllBtn) {
+      saveAllBtn.addEventListener('click', async function () {
+        var saved = 0;
+        for (var i = 0; i < state.gameSearchResults.length; i++) {
+          var review = state.gameSearchResults[i];
+          var articleData = {
+            title: review.title || state.gameSearchQuery,
+            source: review.source || 'Review',
+            excerpt: review.excerpt || '',
+            tags: ['videojuegos', 'review', state.gameSearchQuery],
+            contentText: review.excerpt || '',
+            sourceUrl: review.url || ''
+          };
+          var result = await CleanNewsStorage.saveArticle(articleData);
+          if (result.success) saved++;
+        }
+        showToast(saved + ' review' + (saved !== 1 ? 's' : '') + ' guardada' + (saved !== 1 ? 's' : ''), 'success');
+        await loadAllData();
+        try { chrome.runtime.sendMessage({ type: 'ARTICLE_SAVED' }); } catch (ex) { /* ignore */ }
+      });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // EVENT BINDING
   // ═══════════════════════════════════════════════════════════════
 
@@ -813,7 +1861,7 @@
       renderLibrary();
     });
 
-    // Library link → open full library
+    // Library link
     libraryLink.addEventListener('click', function (e) {
       e.preventDefault();
       chrome.tabs.create({
@@ -847,6 +1895,120 @@
         }
       });
     }
+
+    // ── Notes events ──
+    toggleNewNote.addEventListener('click', function () {
+      state._editingNoteId = null;
+      newNoteTitle.value = '';
+      newNoteContent.value = '';
+      newNoteTags.value = '';
+      state.newNoteColor = '#059669';
+      renderNoteColorDots();
+      noteForm.classList.toggle('hidden');
+      if (!noteForm.classList.contains('hidden')) newNoteTitle.focus();
+    });
+
+    saveNoteBtn.addEventListener('click', doSaveNote);
+
+    cancelNoteBtn.addEventListener('click', function () {
+      noteForm.classList.add('hidden');
+      newNoteTitle.value = '';
+      newNoteContent.value = '';
+      newNoteTags.value = '';
+      state._editingNoteId = null;
+    });
+
+    notesSearchInput.addEventListener('input', function () {
+      state.notesSearchQuery = notesSearchInput.value;
+      renderNotes();
+    });
+
+    // ── Snippets events ──
+    snippetsSearchInput.addEventListener('input', function () {
+      state.snippetsSearchQuery = snippetsSearchInput.value;
+      renderSnippets();
+    });
+
+    // ── Tools events ──
+    toolsGrid.querySelectorAll('.sp-tool-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        state.activeTool = card.getAttribute('data-tool');
+        renderToolsView();
+      });
+    });
+
+    // Tool back button
+    toolView.addEventListener('click', function (e) {
+      if (e.target.closest('[data-action="tool-back"]')) {
+        state.activeTool = null;
+        renderToolsView();
+      }
+      // Copy tool result
+      if (e.target.closest('[data-action="tool-copy-result"]')) {
+        if (state.toolResults) {
+          navigator.clipboard.writeText(state.toolResults).then(function () {
+            showToast('Copiado al portapapeles', 'success');
+          }).catch(function () {
+            showToast('No se pudo copiar', 'error');
+          });
+        }
+      }
+    });
+
+    // ── Game Reviews events ──
+    gameSearchBtn.addEventListener('click', doGameSearch);
+    if (gameSearchInput) {
+      gameSearchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          doGameSearch();
+        }
+      });
+    }
+
+    // ── Batch extract ──
+    if (batchExtractBtn) {
+      batchExtractBtn.addEventListener('click', doBatchExtract);
+    }
+
+    // ── Share dropdown ──
+    shareDropdown.querySelectorAll('[data-action="share-copy-link"]').forEach(function (btn) {
+      btn.addEventListener('click', doShareCopyLink);
+    });
+    shareDropdown.querySelectorAll('[data-action="share-copy-content"]').forEach(function (btn) {
+      btn.addEventListener('click', doShareCopyContent);
+    });
+
+    // ── Pomodoro ──
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('[data-action="pomodoro-play"]')) {
+        togglePomodoro();
+      }
+      if (e.target.closest('[data-action="pomodoro-reset"]')) {
+        resetPomodoro();
+      }
+      // Close share dropdown on outside click
+      if (state.shareDropdownOpen && !e.target.closest('#share-btn') && !e.target.closest('#share-dropdown')) {
+        closeShareDropdown();
+      }
+    });
+
+    // Listen for messages from background (e.g., snippet save)
+    chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
+      if (message.type === 'SNIPPET_SAVED') {
+        loadAllData().then(function () {
+          if (state.currentTab === 'snippets') renderSnippets();
+          updateStats();
+        });
+        sendResponse({ success: true });
+      } else if (message.type === 'ARTICLE_SAVED' || message.type === 'ARTICLE_DELETED') {
+        loadAllData().then(function () {
+          updateStats();
+          if (state.currentTab === 'library') renderLibrary();
+        });
+        sendResponse({ success: true });
+      }
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════

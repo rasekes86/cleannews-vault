@@ -24,7 +24,7 @@
     </div>
   </header>
 
-  <!-- ═══ Tab Navigation ═══ -->
+  <!-- ═══ Tab Navigation (scrollable) ═══ -->
   <nav class="sp-tabs">
     <button class="sp-tab active" data-tab="extract">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
@@ -38,12 +38,28 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
       Colecciones
     </button>
+    <button class="sp-tab" data-tab="notes">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+      Notas
+    </button>
+    <button class="sp-tab" data-tab="snippets">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83"></path></svg>
+      Fragmentos
+    </button>
+    <button class="sp-tab" data-tab="tools">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+      Herramientas
+    </button>
+    <button class="sp-tab" data-tab="reviews">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M6 12h4m-2-2v4"></path><path d="M15.5 9.5l-1.5 2.5 1.5 2.5"></path></svg>
+      Reviews
+    </button>
   </nav>
 
   <!-- ═══ Tab Panels ═══ -->
   <main class="sp-main">
 
-    <!-- ─── Extract Tab ─── -->
+    <!-- ─── 1. Extraer Tab ─── -->
     <div class="sp-tab-panel active" data-panel="extract">
       <!-- Page Info -->
       <div class="sp-page-info">
@@ -56,13 +72,37 @@
         </div>
       </div>
 
-      <!-- Extract Actions Area -->
-      <div id="extract-actions" class="sp-extract-actions">
-        <!-- Rendered by JS: extract button / loading / already saved / preview -->
+      <!-- Extract Actions Area (rendered by JS) -->
+      <div id="extract-actions" class="sp-extract-actions"></div>
+
+      <!-- Batch Extract Section -->
+      <div class="sp-batch-extract">
+        <button id="batch-extract-btn" class="sp-btn sp-btn-secondary sp-batch-extract-btn" data-action="batch-extract">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Extraer todas las pestañas
+        </button>
+        <div id="batch-extract-progress" class="sp-batch-progress hidden">
+          <span class="sp-spinner sp-spinner-small"></span>
+          <span id="batch-progress-text">Extrayendo 0/0...</span>
+        </div>
+      </div>
+
+      <!-- Pomodoro Widget (floating bottom-right) -->
+      <div id="pomodoro-widget" class="sp-pomodoro-widget hidden">
+        <div class="sp-pomodoro-timer" id="pomodoro-timer">25:00</div>
+        <div class="sp-pomodoro-controls">
+          <button id="pomodoro-play" class="sp-pomodoro-btn" data-action="pomodoro-play" title="Iniciar">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          </button>
+          <button id="pomodoro-reset" class="sp-pomodoro-btn" data-action="pomodoro-reset" title="Reiniciar">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+          </button>
+        </div>
+        <div class="sp-pomodoro-label">Pomodoro</div>
       </div>
     </div>
 
-    <!-- ─── Library Tab ─── -->
+    <!-- ─── 2. Biblioteca Tab ─── -->
     <div class="sp-tab-panel" data-panel="library">
       <!-- Search -->
       <div class="sp-search">
@@ -70,7 +110,7 @@
         <input type="text" id="search-input" placeholder="Buscar artículos..." autocomplete="off">
       </div>
 
-      <!-- Collection filter header (hidden by default) -->
+      <!-- Collection filter header -->
       <div id="collection-filter-header" class="sp-collection-filter hidden">
         <span id="collection-filter-dot" class="sp-collection-filter-dot"></span>
         <span id="collection-filter-name"></span>
@@ -88,6 +128,10 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
           No leídos
         </button>
+        <button class="sp-filter-btn" data-filter="queued">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          En cola
+        </button>
       </div>
 
       <!-- Articles List -->
@@ -103,7 +147,7 @@
       </div>
     </div>
 
-    <!-- ─── Collections Tab ─── -->
+    <!-- ─── 3. Colecciones Tab ─── -->
     <div class="sp-tab-panel" data-panel="collections">
       <div class="sp-collections-header">
         <h3>Colecciones</h3>
@@ -113,7 +157,7 @@
         </button>
       </div>
 
-      <!-- New Collection Form (hidden by default) -->
+      <!-- New Collection Form -->
       <div id="collection-form" class="sp-collection-form hidden">
         <label class="sp-form-label">Nombre</label>
         <input type="text" id="new-collection-name" class="sp-form-input" placeholder="Ej: Artículos de IA">
@@ -137,6 +181,134 @@
       </div>
     </div>
 
+    <!-- ─── 4. Notas Tab ─── -->
+    <div class="sp-tab-panel" data-panel="notes">
+      <!-- Notes Header -->
+      <div class="sp-notes-header">
+        <div class="sp-search sp-search-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="notes-search-input" placeholder="Buscar notas..." autocomplete="off">
+        </div>
+        <button id="toggle-new-note" class="sp-btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Nueva nota
+        </button>
+      </div>
+
+      <!-- New Note Form -->
+      <div id="note-form" class="sp-note-form hidden">
+        <input type="text" id="new-note-title" class="sp-form-input" placeholder="Título de la nota">
+        <textarea id="new-note-content" class="sp-form-textarea" placeholder="Escribe tu nota..." rows="4"></textarea>
+        <div class="sp-note-form-row">
+          <div class="sp-note-colors" id="note-color-dots"></div>
+          <div class="sp-form-actions">
+            <button id="save-note" class="sp-btn sp-btn-primary sp-btn-sm">Guardar</button>
+            <button id="cancel-note" class="sp-btn sp-btn-secondary sp-btn-sm">Cancelar</button>
+          </div>
+        </div>
+        <input type="text" id="new-note-tags" class="sp-form-input sp-form-input-sm" placeholder="Etiquetas (separar con comas)">
+      </div>
+
+      <!-- Notes List -->
+      <div id="notes-list" class="sp-notes-list"></div>
+
+      <!-- Notes Empty State -->
+      <div id="notes-empty" class="sp-empty hidden">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+        </svg>
+        <p>Sin notas aún</p>
+      </div>
+    </div>
+
+    <!-- ─── 5. Fragmentos Tab ─── -->
+    <div class="sp-tab-panel" data-panel="snippets">
+      <!-- Snippets Header -->
+      <div class="sp-snippets-header">
+        <div class="sp-search sp-search-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="snippets-search-input" placeholder="Buscar fragmentos..." autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Snippets List -->
+      <div id="snippets-list" class="sp-snippets-list"></div>
+
+      <!-- Snippets Empty State -->
+      <div id="snippets-empty" class="sp-empty hidden">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83"></path>
+        </svg>
+        <p>Sin fragmentos guardados</p>
+        <p class="sp-empty-hint">Selecciona texto en cualquier página y usa "Guardar fragmento" desde el menú contextual</p>
+      </div>
+    </div>
+
+    <!-- ─── 6. Herramientas Tab ─── -->
+    <div class="sp-tab-panel" data-panel="tools">
+      <!-- Tools Grid -->
+      <div id="tools-grid" class="sp-tools-grid">
+        <button class="sp-tool-card" data-tool="color-picker">
+          <span class="sp-tool-icon">🎨</span>
+          <span class="sp-tool-name">Color Picker</span>
+        </button>
+        <button class="sp-tool-card" data-tool="json-formatter">
+          <span class="sp-tool-icon">{ }</span>
+          <span class="sp-tool-name">JSON Formatter</span>
+        </button>
+        <button class="sp-tool-card" data-tool="password">
+          <span class="sp-tool-icon">🔐</span>
+          <span class="sp-tool-name">Password Gen</span>
+        </button>
+        <button class="sp-tool-card" data-tool="qr">
+          <span class="sp-tool-icon">📱</span>
+          <span class="sp-tool-name">QR Generator</span>
+        </button>
+        <button class="sp-tool-card" data-tool="word-counter">
+          <span class="sp-tool-icon">📏</span>
+          <span class="sp-tool-name">Word Counter</span>
+        </button>
+      </div>
+
+      <!-- Tool Inline View (replaces grid when active) -->
+      <div id="tool-view" class="sp-tool-view hidden">
+        <div class="sp-tool-view-header">
+          <button class="sp-btn-ghost sp-tool-back" data-action="tool-back">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            Volver
+          </button>
+          <span id="tool-view-title" class="sp-tool-view-title"></span>
+        </div>
+        <div id="tool-view-content" class="sp-tool-view-content"></div>
+      </div>
+    </div>
+
+    <!-- ─── 7. Reviews Tab ─── -->
+    <div class="sp-tab-panel" data-panel="reviews">
+      <!-- Game Search -->
+      <div class="sp-game-search">
+        <div class="sp-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="game-search-input" placeholder="Buscar videojuego..." autocomplete="off">
+        </div>
+        <button id="game-search-btn" class="sp-btn sp-btn-primary sp-btn-full" data-action="game-search">
+          Buscar
+        </button>
+      </div>
+
+      <!-- Game Search Results -->
+      <div id="game-results" class="sp-game-results"></div>
+
+      <!-- Game Results Empty -->
+      <div id="game-empty" class="sp-empty hidden">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+          <path d="M6 12h4m-2-2v4"></path>
+        </svg>
+        <p>Busca un videojuego para ver sus reviews</p>
+      </div>
+    </div>
+
   </main>
 
   <!-- ═══ Footer ═══ -->
@@ -145,12 +317,28 @@
       <span id="stat-total" class="sp-stat">0 artículos</span>
       <span class="sp-stat-divider">·</span>
       <span id="stat-unread" class="sp-stat">0 sin leer</span>
+      <span class="sp-stat-divider">·</span>
+      <span id="stat-notes" class="sp-stat">0 notas</span>
+      <span class="sp-stat-divider">·</span>
+      <span id="stat-snippets" class="sp-stat">0 fragmentos</span>
     </div>
     <a id="library-link" href="#" class="sp-library-link">
       Abrir Biblioteca Completa
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
     </a>
   </footer>
+
+  <!-- ═══ Share Dropdown (absolute positioned) ═══ -->
+  <div id="share-dropdown" class="sp-share-dropdown hidden">
+    <button class="sp-share-option" data-action="share-copy-link">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      Copiar enlace
+    </button>
+    <button class="sp-share-option" data-action="share-copy-content">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      Copiar contenido
+    </button>
+  </div>
 
   <!-- ═══ Toast Container ═══ -->
   <div id="toast-container" class="sp-toast-container"></div>
@@ -162,6 +350,12 @@
   <script src="../utils/auto-tagger.js"></script>
   <script src="../utils/storage.js"></script>
   <script src="../utils/export.js"></script>
+  <script src="../utils/notes.js"></script>
+  <script src="../utils/highlights.js"></script>
+  <script src="../utils/snippets.js"></script>
+  <script src="../utils/tools.js"></script>
+  <script src="../utils/game-reviews.js"></script>
+  <script src="../utils/pomodoro.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

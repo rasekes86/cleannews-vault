@@ -1,9 +1,10 @@
-// CleanNews Vault v2.0 - IndexedDB Wrapper
+// CleanNews Vault v5.0 - IndexedDB Wrapper (Version 2)
 // Singleton database layer using native IndexedDB API
+// Stores: articles, collections, settings, notes, highlights, snippets
 
 const CleanNewsDB = (() => {
   const DB_NAME = 'cleannews_vault_db';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
 
   let _db = null;
   let _initPromise = null;
@@ -39,6 +40,26 @@ const CleanNewsDB = (() => {
         // Settings store
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
+        }
+
+        // Notes store (v2)
+        if (!db.objectStoreNames.contains('notes')) {
+          const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
+          notesStore.createIndex('articleId', 'articleId', { unique: false });
+          notesStore.createIndex('createdAt', 'createdAt', { unique: false });
+        }
+
+        // Highlights store (v2)
+        if (!db.objectStoreNames.contains('highlights')) {
+          const highlightsStore = db.createObjectStore('highlights', { keyPath: 'id' });
+          highlightsStore.createIndex('articleId', 'articleId', { unique: false });
+          highlightsStore.createIndex('createdAt', 'createdAt', { unique: false });
+        }
+
+        // Snippets store (v2)
+        if (!db.objectStoreNames.contains('snippets')) {
+          const snippetsStore = db.createObjectStore('snippets', { keyPath: 'id' });
+          snippetsStore.createIndex('createdAt', 'createdAt', { unique: false });
         }
       };
 
@@ -83,7 +104,7 @@ const CleanNewsDB = (() => {
 
     /**
      * Add a new item to a store.
-     * @param {string} store  - Object store name ('articles', 'collections', 'settings')
+     * @param {string} store  - Object store name ('articles', 'collections', 'settings', 'notes', 'highlights', 'snippets')
      * @param {object} item  - The item to add
      * @returns {Promise<object>} The added item (with generated key if auto)
      */
