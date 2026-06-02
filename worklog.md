@@ -141,3 +141,24 @@ Stage Summary:
 - IndexedDB v2 with 6 stores
 - Release published at https://github.com/rasekes86/cleannews-vault/releases/tag/v5.0.0
 - ZIP downloadable at https://github.com/rasekes86/cleannews-vault/releases/download/v5.0.0/cleannews-vault-v5.0.0.zip
+
+---
+Task ID: 8
+Agent: Main Orchestrator
+Task: Fix Game Review Finder - real search with complete data on save
+
+Work Log:
+- Diagnosed 3 critical bugs: wrong method name (search vs searchReviews), mock fallback with fake data, contentText same as excerpt
+- Added host_permissions for html.duckduckgo.com to manifest.json
+- Rewrote game-reviews.js: HTML parser for DuckDuckGo search results with 26 known gaming sources, review detection, score extraction
+- Updated background.js SEARCH_GAME_REVIEWS handler to use real parser
+- Rewrote sidepanel.js game review section: routes search via chrome.runtime.sendMessage to background.js, proper review cards with badges, domain, score, source, "Open" and "Save" buttons, saveReviewAsArticle() stores full metadata (source, URL, game name, score, excerpt, HTML content, wordCount, readTime)
+- Added CSS for review badges, result count, meta row, domain display, outline buttons
+- Version bump to v5.1.0
+- Pushed to GitHub and created release v5.1.0 with ZIP asset
+
+Stage Summary:
+- 5 files changed, 505 insertions, 232 deletions
+- Game Review Finder now fetches REAL results from DuckDuckGo HTML search
+- Saved reviews contain complete info: title, source, URL, score, excerpt, full content text + HTML
+- Release at https://github.com/rasekes86/cleannews-vault/releases/tag/v5.1.0
