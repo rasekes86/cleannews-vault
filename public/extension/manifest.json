@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CleanNews Vault",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "description": "Extrae y guarda artículos limpios desde un Side Panel. Biblioteca personal con colecciones, notas, resaltados, fragmentos, herramientas, pomodoro y exportación.",
   "permissions": [
     "activeTab",
@@ -13,7 +13,10 @@
   ],
   "host_permissions": [
     "https://html.duckduckgo.com/*",
-    "https://duckduckgo.com/*"
+    "https://duckduckgo.com/*",
+    "https://store.steampowered.com/*",
+    "https://steamcommunity.com/*",
+    "https://api.rawg.io/*"
   ],
   "action": {
     "default_icon": {

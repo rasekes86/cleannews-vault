@@ -382,7 +382,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
       return true; // async
     }
 
-    // ── Search game reviews (real DuckDuckGo HTML search) ───
+    // ── Search game reviews (DuckDuckGo HTML) ───────────────
     case 'SEARCH_GAME_REVIEWS': {
       if (typeof CleanNewsGameReviews !== 'undefined') {
         CleanNewsGameReviews.searchReviews(message.query || '')
@@ -396,6 +396,153 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         sendResponse({ success: false, error: 'CleanNewsGameReviews no disponible' });
       }
       return true; // async
+    }
+
+    // ── Search Steam for game data (no key needed) ─────────
+    case 'SEARCH_STEAM_GAME': {
+      if (typeof CleanNewsGameReviews !== 'undefined') {
+        CleanNewsGameReviews.searchSteam(message.query || '')
+          .then(function (game) {
+            if (game) {
+              // Also fetch review summary
+              if (game.steamAppId) {
+                CleanNewsGameReviews.getSteamReviews(game.steamAppId)
+                  .then(function (reviews) {
+                    if (reviews) {
+                      game.reviewScore = reviews.reviewScore;
+                      game.reviewScoreDesc = reviews.reviewScoreDesc;
+                      game.reviewCount = reviews.totalReviews;
+                      game.reviewPositive = reviews.totalPositive;
+                      game.reviewNegative = reviews.totalNegative;
+                      game.reviewPercentage = reviews.totalReviewsPercentage;
+                    }
+                    sendResponse({ success: true, steam: game });
+                  })
+                  .catch(function () {
+                    sendResponse({ success: true, steam: game });
+                  });
+              } else {
+                sendResponse({ success: true, steam: game });
+              }
+            } else {
+              sendResponse({ success: true, steam: null });
+            }
+          })
+          .catch(function (err) {
+            sendResponse({ success: false, error: err.message });
+          });
+      } else {
+        sendResponse({ success: false, error: 'CleanNewsGameReviews no disponible' });
+      }
+      return true; // async
+    }
+
+    // ── Search RAWG for game data (requires key) ────────────
+    case 'SEARCH_RAWG_GAME': {
+      // Read RAWG key from storage
+      chrome.storage.local.get(['rawg_api_key'], function (storageData) {
+        var apiKey = storageData.rawg_api_key || '';
+        if (!apiKey) {
+          sendResponse({ success: false, error: 'Clave RAWG no configurada' });
+          return;
+        }
+        if (typeof CleanNewsGameReviews !== 'undefined') {
+          CleanNewsGameReviews.searchRAWG(message.query || '', apiKey)
+            .then(function (game) {
+              if (game && game.error) {
+                sendResponse({ success: false, error: game.error });
+              } else if (game) {
+                sendResponse({ success: true, rawg: game });
+              } else {
+                sendResponse({ success: true, rawg: null });
+              }
+            })
+            .catch(function (err) {
+              sendResponse({ success: false, error: err.message });
+            });
+        } else {
+          sendResponse({ success: false, error: 'CleanNewsGameReviews no disponible' });
+        }
+      });
+      return true; // async
+    }
+
+    // ── Extract full content from a review URL ─────────────
+    case 'EXTRACT_REVIEW_URL': {
+      var targetUrl = message.url;
+      if (!targetUrl || !targetUrl.startsWith('http')) {
+        sendResponse({ success: false, error: 'URL inválida' });
+        return true;
+      }
+
+      // Create a hidden tab, inject readability, extract content, then close
+      chrome.tabs.create({ url: targetUrl, active: false }, function (tab) {
+        // Wait for page to load
+        function tryExtract(attemptsLeft) {
+          if (attemptsLeft <= 0) {
+            try { chrome.tabs.remove(tab.id); } catch (e) {}
+            sendResponse({ success: false, error: 'Tiempo de espera agotado al cargar la página' });
+            return;
+          }
+
+          setTimeout(function () {
+            // Inject readability.js first
+            chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content/readability.js']
+            }).then(function () {
+              // Extract content
+              return chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: function () {
+                  try {
+                    if (typeof CleanNewsReadability === 'undefined') {
+                      return { success: false, error: 'Readability no disponible' };
+                    }
+                    var reader = new CleanNewsReadability();
+                    return { success: true, data: reader.parse() };
+                  } catch (err) {
+                    return { success: false, error: err.message };
+                  }
+                }
+              });
+            }).then(function (injectionResults) {
+              try { chrome.tabs.remove(tab.id); } catch (e) {}
+              if (injectionResults && injectionResults.length > 0 && injectionResults[0].result) {
+                sendResponse(injectionResults[0].result);
+              } else {
+                sendResponse({ success: false, error: 'No se pudo extraer contenido' });
+              }
+            }).catch(function (err) {
+              // If tab is still loading, retry
+              if (attemptsLeft > 1) {
+                tryExtract(attemptsLeft - 1);
+              } else {
+                try { chrome.tabs.remove(tab.id); } catch (e) {}
+                sendResponse({ success: false, error: err.message });
+              }
+            });
+          }, 1500); // 1.5s wait between retries
+        }
+
+        tryExtract(4); // max 4 attempts = 6 seconds
+      });
+      return true; // async
+    }
+
+    // ── Save/Get RAWG API key ──────────────────────────────
+    case 'SAVE_RAWG_KEY': {
+      chrome.storage.local.set({ rawg_api_key: message.key || '' }, function () {
+        sendResponse({ success: true });
+      });
+      return true;
+    }
+
+    case 'GET_RAWG_KEY': {
+      chrome.storage.local.get(['rawg_api_key'], function (data) {
+        sendResponse({ key: data.rawg_api_key || '' });
+      });
+      return true;
     }
 
     // ── Article saved/updated — refresh badge ──────────────
@@ -456,13 +603,13 @@ chrome.runtime.onInstalled.addListener(function (details) {
   }).catch(function () {});
 
   if (details.reason === 'install') {
-    console.log('[CleanNews Vault] v5.1.0 instalado');
+    console.log('[CleanNews Vault] v5.2.0 instalado');
     createContextMenus();
     refreshBadge();
   }
 
   if (details.reason === 'update') {
-    console.log('[CleanNews Vault] Actualizado a v5.1.0 (antes: ' + details.previousVersion + ')');
+    console.log('[CleanNews Vault] Actualizado a v5.2.0 (antes: ' + details.previousVersion + ')');
     chrome.contextMenus.removeAll(function () {
       createContextMenus();
     });
