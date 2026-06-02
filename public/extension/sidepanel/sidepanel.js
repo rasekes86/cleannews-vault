@@ -1990,10 +1990,11 @@
     if (review.url && review.url.startsWith('http')) {
       showToast('Extrayendo contenido completo...', 'info');
       fullContent = await extractFullReviewContent(review.url);
+    }
 
     if (fullContent) {
       var wc = fullContent.wordCount || 0;
-      console.log('[CleanNews] Saving review with full content:', review.title, '(' + wc + ' words)');
+      console.log('[CleanNews Saving review with full content:', review.title, '(' + wc + ' words)');
     } else {
       console.log('[CleanNews] Saving review with snippet only:', review.title);
     }
@@ -2072,6 +2073,8 @@
       wordCount: wordCount,
       readTime: Math.max(1, Math.ceil(wordCount / 200))
     };
+
+    console.log('[CleanNews] Saving article:', title, '| contentText:', (contentText || '').substring(0, 100) + '...', '| contentHtml:', (contentHtml || '').substring(0, 100) + '...');
 
     var result = await CleanNewsStorage.saveArticle(articleData);
     return result;

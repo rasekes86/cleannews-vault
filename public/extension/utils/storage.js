@@ -99,14 +99,36 @@ const CleanNewsStorage = (() => {
         }
 
         const now = new Date().toISOString();
+
+        // Content validation: ensure at least excerpt or minimal content exists
+        var contentHtml = articleData.contentHtml || '';
+        var contentText = articleData.contentText || articleData.content || '';
+        var excerpt = articleData.excerpt || '';
+
+        // If no contentHtml and no contentText, try to create content from excerpt
+        if (!contentHtml.trim() && !contentText.trim() && excerpt.trim()) {
+          contentText = excerpt;
+        }
+
+        // If still nothing, create a placeholder with source URL
+        if (!contentHtml.trim() && !contentText.trim()) {
+          var sourceUrl = articleData.sourceUrl || '';
+          contentText = 'Contenido no disponible. Extraído: ' + new Date().toLocaleString('es-ES');
+          if (sourceUrl) {
+            contentText += '\nFuente: ' + sourceUrl;
+          }
+          contentHtml = '<p>Contenido no disponible.</p>' +
+            (sourceUrl ? '<p><a href="' + sourceUrl.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer">Leer en la fuente original</a></p>' : '');
+        }
+
         const article = {
           id: generateId('art'),
           title: articleData.title || 'Sin título',
           author: articleData.author || '',
           source: articleData.source || '',
           sourceUrl: articleData.sourceUrl || '',
-          contentHtml: articleData.contentHtml || '',
-          contentText: articleData.contentText || articleData.content || '',
+          contentHtml: contentHtml,
+          contentText: contentText,
           excerpt: articleData.excerpt || '',
           featuredImage: articleData.featuredImage || '',
           publishedAt: articleData.publishedAt || '',

@@ -122,6 +122,58 @@ const CleanNewsHighlights = (() => {
     },
 
     /**
+     * Ensure the highlights store is ready (called by reader on init).
+     * @returns {Promise<void>}
+     */
+    async ensureStore() {
+      try {
+        await _ensureInit();
+        // Verify the store exists by doing a count
+        await CleanNewsDB.count(STORE);
+      } catch (err) {
+        console.error('[CleanNewsHighlights] ensureStore error:', err);
+      }
+    },
+
+    /**
+     * Update a highlight by ID with partial updates.
+     * @param {string} id
+     * @param {object} updates - Partial fields to update
+     * @returns {Promise<{success: boolean, highlight?: object}>}
+     */
+    async update(id, updates) {
+      try {
+        await _ensureInit();
+        const highlight = await CleanNewsDB.get(STORE, id);
+        if (!highlight) {
+          return { success: false, error: 'Resaltado no encontrado' };
+        }
+
+        const updated = {
+          ...highlight,
+          ...updates,
+          id: highlight.id,
+          createdAt: highlight.createdAt
+        };
+
+        await CleanNewsDB.put(STORE, updated);
+        return { success: true, highlight: updated };
+      } catch (err) {
+        console.error('[CleanNewsHighlights] update error:', err);
+        return { success: false, error: err.message };
+      }
+    },
+
+    /**
+     * Remove all highlights for a specific article (alias for deleteByArticle).
+     * @param {string} articleId
+     * @returns {Promise<{success: boolean, deleted: number}>}
+     */
+    async removeAllForArticle(articleId) {
+      return this.deleteByArticle(articleId);
+    },
+
+    /**
      * Delete all highlights for a specific article.
      * @param {string} articleId
      * @returns {Promise<{success: boolean, deleted: number}>}

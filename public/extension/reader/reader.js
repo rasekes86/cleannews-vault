@@ -270,11 +270,33 @@
       articleCollections.classList.add('hidden');
     }
 
-    // Content
-    if (article.contentHtml) {
+    // Content — with empty-content fallback
+    var hasContent = false;
+    if (article.contentHtml && article.contentHtml.trim().length > 0) {
       articleContent.innerHTML = sanitizeHtml(article.contentHtml);
-    } else {
-      articleContent.innerHTML = renderTextContent(article.contentText || article.content || article.excerpt || '');
+      hasContent = true;
+    } else if (article.contentText && article.contentText.trim().length > 0) {
+      articleContent.innerHTML = renderTextContent(article.contentText);
+      hasContent = true;
+    } else if (article.content && article.content.trim().length > 0) {
+      articleContent.innerHTML = renderTextContent(article.content);
+      hasContent = true;
+    } else if (article.excerpt && article.excerpt.trim().length > 0) {
+      articleContent.innerHTML = renderTextContent(article.excerpt);
+      hasContent = true;
+    }
+
+    if (!hasContent) {
+      // No content was extracted — show helpful fallback with source link
+      var emptyHtml = '<div class="cnv-empty-content">';
+      emptyHtml += '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:block;margin:0 auto 12px;color:var(--text-muted);"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>';
+      emptyHtml += '<p style="text-align:center;color:var(--text-muted);font-size:14px;">No se pudo extraer el contenido del art\u00edculo.</p>';
+      if (article.sourceUrl) {
+        emptyHtml += '<p style="text-align:center;margin-top:12px;"><a href="' + escapeHtml(article.sourceUrl) + '" target="_blank" rel="noopener noreferrer" style="color:var(--primary);font-weight:600;text-decoration:none;">\ud83d\udd17 Leer en la fuente original</a></p>';
+      }
+      emptyHtml += '</div>';
+      articleContent.innerHTML = emptyHtml;
+      console.warn('[CleanNews Reader] Article has no content:', article.id, article.title);
     }
 
     // Notes
