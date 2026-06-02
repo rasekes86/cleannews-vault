@@ -162,3 +162,26 @@ Stage Summary:
 - Game Review Finder now fetches REAL results from DuckDuckGo HTML search
 - Saved reviews contain complete info: title, source, URL, score, excerpt, full content text + HTML
 - Release at https://github.com/rasekes86/cleannews-vault/releases/tag/v5.1.0
+
+---
+Task ID: 9
+Agent: Main Orchestrator
+Task: v5.2.0 - Steam API + RAWG API + Full content extraction for Game Reviews
+
+Work Log:
+- Added Steam Store API integration (no API key needed): search + app details + user reviews
+- Added RAWG API integration (free key, configurable): search + game details + rating
+- Added full content extraction: hidden tab + readability.js when saving reviews
+- Updated manifest.json v5.2.0 with host_permissions for Steam and RAWG
+- Updated background.js with 6 new message handlers (SEARCH_STEAM_GAME, SEARCH_RAWG_GAME, EXTRACT_REVIEW_URL, SAVE_RAWG_KEY, GET_RAWG_KEY)
+- Rewrote game-reviews.js with Steam parser (prices, platforms, reviews), RAWG parser (rating, genres, stores)
+- Rewrote sidepanel.js: parallel search (DuckDuckGo+Steam+RAWG), game info card rendering, full content save, RAWG config UI
+- Updated sidepanel.html with game info card, RAWG config panel
+- Added 200+ lines of CSS for game info card, Steam reviews colors, RAWG config, info grid
+- Pushed and created release v5.2.0
+
+Stage Summary:
+- 6 files changed, 1011 insertions, 223 deletions
+- Steam data works immediately (no key), RAWG needs free key config
+- Full review content extracted via hidden tab + readability.js
+- Release at https://github.com/rasekes86/cleannews-vault/releases/tag/v5.2.0
